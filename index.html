@@ -186,7 +186,7 @@
   function overlaps(a,b){ const r1=a.getBoundingClientRect(), r2=b.getBoundingClientRect(); return !(r1.right<r2.left||r1.left>r2.right||r1.bottom<r2.top||r1.top>r2.bottom); }
 
   // >>> EDIT HERE: distance from the icon grid to the recycle can (px)
-  const RECYCLE_OFFSET = { dx: 240, dy: 160 };
+  const RECYCLE_OFFSET = { dx: 100, dy: 60 };
 
   function positionRecycle(){
     const r = iconsGrid.getBoundingClientRect();
