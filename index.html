@@ -9,6 +9,7 @@
        Put these files NEXT TO index.html (same folder):
        - 98webbgfin2.png   (background without the head)
        - media head.png    (green head PNG, transparent screen)
+       - aoll.png          (AOL "About" window PNG)
        - mouse 3.gif       (custom cursor GIF)
        - laser.mp3         (click sound)
        Replace the YouTube VIDEO_ID below with yours. */
@@ -32,6 +33,10 @@
       /* Background fit: use 'contain' to keep full image visible on any screen
          or change to 'cover' to fill (may crop). */
       --bgfit: contain;
+      /* AOL window position/size (percent of stage) */
+      --aol-x: 73;   /* left % */
+      --aol-y: 54;   /* top %  */
+      --aol-w: 22;   /* width % */
     }
 
     *{box-sizing:border-box}
@@ -50,12 +55,13 @@
     .player .sprite{position:relative; z-index:2; width:100%; height:auto; display:block; image-rendering:pixelated}
 
     /* Put the video UNDER the head image so it shows through the transparent screen */
-    
+    .player .screen{position:absolute; z-index:1; left:calc(var(--screen-left) * 1%); top:calc(var(--screen-top) * 1%); width:calc(var(--screen-w) * 1%); height:calc(var(--screen-h) * 1%); background:#000; overflow:hidden; border:none; box-shadow:none}
     .player .screen iframe{position:absolute; inset:0; width:100%; height:100%; border:0}
 
-    /* Video screen area within the head */
-    
-    .player .screen iframe{position:absolute; inset:0; width:100%; height:100%; border:0}
+    /* Draggable AOL window */
+    .aol{position:absolute; left:calc(var(--aol-x) * 1%); top:calc(var(--aol-y) * 1%); width:calc(var(--aol-w) * 1%); user-select:none; -webkit-user-drag:none; cursor:grab; z-index:3}
+    .aol:active{cursor:grabbing}
+    .aol .sprite{width:100%; height:auto; display:block; image-rendering:pixelated}
 
     /* Custom cursor follower (uses your GIF, inverts on click) */
     #cursor{position:fixed; left:0; top:0; height:32px; width:auto; pointer-events:none;
@@ -95,6 +101,10 @@
             title="YouTube player" allow="autoplay; accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
         </div>
       </div>
+      <!-- Draggable AOL window overlay -->
+      <div class="aol" id="aol">
+        <img src="aoll.png" alt="About window" class="sprite" draggable="false"/>
+      </div>
     </main>
   </div>
 
@@ -119,6 +129,7 @@
     const stage = document.getElementById('stage');
     const player = document.getElementById('player');
     const cursor = document.getElementById('cursor');
+    const aol = document.getElementById('aol');
 
     function stageRect(){ return stage.getBoundingClientRect(); }
     function setVar(el, name, value){ el.style.setProperty(name, String(value)); }
@@ -126,17 +137,32 @@
     /* ---------- Draggable + gentle autopilot bounce ---------- */
     let dragging = false, dx=0, dy=0, idleTimer=null;
     let vx = 0.04, vy = 0.03; // % per frame-ish; gentle drift
-    let autopilot = true;
+    let autopilot = false;
 
     const sprite = player.querySelector('.sprite');
     sprite.addEventListener('pointerdown', startDrag);
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', stopDrag);
 
+    // AOL window drag state
+    const aolSprite = aol?.querySelector('.sprite');
+    let draggingA = false, adx = 0, ady = 0;
+    aolSprite?.addEventListener('pointerdown', startDragAol);
+    function startDragAol(e){ draggingA = true; const r = aol.getBoundingClientRect(); adx = e.clientX - r.left; ady = e.clientY - r.top; clickFx(); }
+    window.addEventListener('pointermove', (e)=>{
+      if(!draggingA) return; const S = stageRect();
+      let x = ((e.clientX - S.left - adx) / S.width) * 100;
+      let y = ((e.clientY - S.top  - ady) / S.height) * 100;
+      const aw = aol.getBoundingClientRect().width / S.width * 100;
+      x = Math.max(0, Math.min(100 - aw, x)); y = Math.max(0, Math.min(100 - 10, y));
+      setVar(aol, '--aol-x', x.toFixed(2)); setVar(aol, '--aol-y', y.toFixed(2));
+    });
+    window.addEventListener('pointerup', ()=>{ draggingA = false; });
+
     function startDrag(e){
       // If clicking inside the video screen, do NOT start dragging
       if(e.target && (e.target.closest && e.target.closest('.screen'))) return;
-      dragging = true; autopilot = false; killIdle();
+      dragging = true;
       const r = player.getBoundingClientRect();
       dx = e.clientX - r.left; dy = e.clientY - r.top;
       clickFx();
@@ -153,24 +179,11 @@
       setVar(player, '--player-x', x.toFixed(2));
       setVar(player, '--player-y', y.toFixed(2));
     }
-    function stopDrag(){ if(!dragging) return; dragging = false; idleResume(); }
-    function idleResume(){ idleTimer = setTimeout(()=>{ autopilot = true; }, 3000); }
-    function killIdle(){ if(idleTimer){ clearTimeout(idleTimer); idleTimer=null; } }
+    function stopDrag(){ if(!dragging) return; dragging = false; }
+    /* idle disabled */, 3000); }
+    /* idle disabled */ }
 
-    function tick(){
-      if(autopilot){
-        const S = stageRect();
-        const pw = player.getBoundingClientRect().width / S.width * 100;
-        let x = parseFloat(getComputedStyle(player).getPropertyValue('--player-x')) || 0;
-        let y = parseFloat(getComputedStyle(player).getPropertyValue('--player-y')) || 0;
-        x += vx; y += vy;
-        if(x <= 0 || x >= 100 - pw) vx *= -1;
-        if(y <= 0 || y >= 100 - 12)  vy *= -1;
-        setVar(player, '--player-x', x);
-        setVar(player, '--player-y', y);
-      }
-      requestAnimationFrame(tick);
-    }
+    function tick(){ requestAnimationFrame(tick); }
     requestAnimationFrame(tick);
 
     /* ---------- Custom cursor follower w/ invert-on-click ---------- */
@@ -218,12 +231,10 @@
       const bgMatch = bg && bg.match(/url\(\"?([^\"\)]+)\"?\)/);
       const bgSrc = bgMatch ? bgMatch[1] : '98webbgfin2.png';
       const headSrc = player.querySelector('.sprite')?.getAttribute('src') || 'media head.png';
+      const aolSrc  = aol?.querySelector('.sprite')?.getAttribute('src') || 'aoll.png';
       const cursorSrc = cursor?.getAttribute('src') || 'mouse 3.gif';
-      const audioSrc = clickEl?.getAttribute('src') || 'laser.mp3';
-      let pending = 0; function done(){ if(--pending===0) showIfMissing(); }
-      function addCheck(fn, src, label){ pending++; fn(src, ok=>{ if(!ok) missing.push(label+': '+src); done(); }); }
-      addCheck(checkImg, bgSrc, 'Background');
       addCheck(checkImg, headSrc, 'Head PNG');
+      addCheck(checkImg, aolSrc, 'AOL Window');
       addCheck(checkImg, cursorSrc, 'Cursor GIF');
       if(audioSrc) addCheck(checkAudio, audioSrc, 'Click audio');
       function showIfMissing(){
