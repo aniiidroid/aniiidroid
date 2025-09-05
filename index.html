@@ -29,6 +29,9 @@
       --screen-h: 29.5;
 
       --accent: #0b7a21;
+      /* Background fit: use 'contain' to keep full image visible on any screen
+         or change to 'cover' to fill (may crop). */
+      --bgfit: contain;
     }
 
     *{box-sizing:border-box}
@@ -44,15 +47,14 @@
             top:calc(var(--player-y) * 1%); width:calc(var(--player-w) * 1%);
             user-select:none; -webkit-user-drag:none; cursor:grab}
     .player:active{cursor:grabbing}
-    .player .sprite{width:100%; height:auto; display:block; image-rendering:pixelated}
+    .player .sprite{position:relative; z-index:2; width:100%; height:auto; display:block; image-rendering:pixelated}
+
+    /* Put the video UNDER the head image so it shows through the transparent screen */
+    
+    .player .screen iframe{position:absolute; inset:0; width:100%; height:100%; border:0}
 
     /* Video screen area within the head */
-    .player .screen{position:absolute; left:calc(var(--screen-left) * 1%);
-                    top:calc(var(--screen-top) * 1%);
-                    width:calc(var(--screen-w) * 1%);
-                    height:calc(var(--screen-h) * 1%);
-                    border:2px solid #0b0b0b; box-shadow: inset 0 0 0 2px #000;
-                    background:#000; overflow:hidden}
+    
     .player .screen iframe{position:absolute; inset:0; width:100%; height:100%; border:0}
 
     /* Custom cursor follower (uses your GIF, inverts on click) */
@@ -104,10 +106,12 @@
     window.addEventListener('pointerup', stopDrag);
 
     function startDrag(e){
+      // If clicking inside the video screen, do NOT start dragging
+      if(e.target && (e.target.closest && e.target.closest('.screen'))) return;
       dragging = true; autopilot = false; killIdle();
       const r = player.getBoundingClientRect();
       dx = e.clientX - r.left; dy = e.clientY - r.top;
-      clickFx(); // play click when grabbing
+      clickFx();
     }
     function onMove(e){
       cursorMove(e);
@@ -202,4 +206,3 @@
   </script>
 </body>
 </html>
-
