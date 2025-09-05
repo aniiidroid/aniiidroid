@@ -102,7 +102,7 @@
   .icon img{ max-width:100%; max-height:100%; image-rendering:pixelated; pointer-events:none; filter:none }
 
   /* Recycle icon anchored bottom-right */
-  #iconRecycle{ position:fixed; right:28px; bottom:32px; z-index:var(--z-icons) }
+  #iconRecycle{ position:fixed; right:48px; bottom:56px; z-index:var(--z-icons) }
 
   /* Draggable helpers for anything that pops */
   .pop{ position:absolute; z-index:var(--z-popups); touch-action:none; }
@@ -117,7 +117,7 @@
 
 <main class="stage" id="stage" aria-label="retro desktop background">
   <!-- Head / player -->
-  <div class="player pop" id="player" data-sink="hide" data-miny="-15">
+  <div class="player pop" id="player" data-sink="hide" data-miny="-25">
     <img src="media head.png" alt="media head" class="sprite" draggable="false"/>
     <div class="screen" aria-label="video screen">
       <!-- PLAYLIST EMBED (keeps same size/position) -->
@@ -135,7 +135,7 @@
   </div>
 
   <!-- MP3 player (bottom) + SoundCloud under it -->
-  <div class="mp3 pop" id="mp3Win" data-sink="hide" data-miny="-15">
+  <div class="mp3 pop" id="mp3Win" data-sink="hide" data-miny="-25">
     <img src="music player.png" alt="music player" draggable="false"/>
   </div>
   <div class="sc-wrap" id="scWrap">
@@ -225,12 +225,14 @@
   }
 
   // ICON actions
-  document.getElementById('iconVid').addEventListener('click', ()=>{ if(yt.src!==YT_PLAYLIST) yt.src = YT_PLAYLIST; player.classList.add('show'); });
-  document.getElementById('iconAol').addEventListener('click', ()=> aol.classList.add('show'));
-  document.getElementById('iconMp3').addEventListener('click', ()=>{ mp3Win.classList.add('show'); positionScUnderMp3(); });
-  document.getElementById('iconArt').addEventListener('click', spawnArt);
-  document.getElementById('iconVirus').addEventListener('click', ()=>{ window.location.href = 'virus.html'; });
-  document.getElementById('iconRecycle').addEventListener('click', closeAll);
+  const $ = (id)=>document.getElementById(id);
+  function bind(id, ev, fn){ const el=$(id); if(!el){ console.warn('missing', id); return;} el.addEventListener(ev, fn); }
+  bind('iconVid','click', ()=>{ if(yt && yt.src!==YT_PLAYLIST) yt.src = YT_PLAYLIST; player.classList.add('show'); });
+  bind('iconAol','click', ()=> aol.classList.add('show'));
+  bind('iconMp3','click', ()=>{ mp3Win.classList.add('show'); positionScUnderMp3(); });
+  bind('iconArt','click', spawnArt);
+  bind('iconVirus','click', ()=>{ window.location.href = 'virus.html'; });
+  bind('iconRecycle','click', closeAll);
   // About icon intentionally no action yet
 
   function closeAll(){
