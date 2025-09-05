@@ -1,197 +1,213 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>aniiidroid · retro desktop</title>
-  <style>
-    /* ======= MANUAL KNOBS (edit these) =======
-       Files next to index.html: 98webbgfin3.png, media head.png, aoll.png, mouse 3.gif, laser.mp3
-       ▶ Head screen (YouTube) position & size — values are % of the GREEN HEAD box
-         left/top move the video window inside the head; w/h change its size */
-    :root{
-      /* Head box placement on the page (percent of full page) */
-      --player-x: 21;   /* left %  of page */
-      --player-y: 14;   /* top  %  of page */
-      --player-w: 58;   /* width % of page */
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>aniiidroid · retro desktop</title>
+<style>
+  :root{
+    /* Head placement on page (percent of page) */
+    --player-x: 21;   /* left %  */
+    --player-y: 14;   /* top  %  */
+    --player-w: 58;   /* width % */
 
-      /* Video window INSIDE the head (percent of the head box) */
-      --screen-left: 37.0; /* % from head's left edge */
-      --screen-top:  28.0; /* % from head's top  edge */
-      --screen-w:    27.0; /* width  % of head */
-      --screen-h:    30.0; /* height % of head */
+    /* Video window inside the head (percent of head box) */
+    --screen-left: 37.0;
+    --screen-top:  28.0;
+    --screen-w:    27.0;
+    --screen-h:    30.0;
 
-      /* AOL window default placement (percent of page) */
-      --aol-x: 73;  --aol-y: 54;  --aol-w: 22;
+    /* AOL window placement */
+    --aol-x: 73;  --aol-y: 54;  --aol-w: 22;
 
-      /* Always show the full background image (no cropping). Use 'cover' if you prefer full-bleed. */
-      --bgfit: contain;
-    }
+    /* Show full background image (no crop) */
+    --bgfit: contain;
+  }
 
-    *{box-sizing:border-box}
-    html,body{height:100%;margin:0}
-    body{background:#061607;color:#000;font-family:Tahoma,Verdana,system-ui,sans-serif;cursor:none}
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0}
+  body{
+    background:#061607;
+    color:#000;
+    font-family:Tahoma,Verdana,system-ui,sans-serif;
+    cursor:none; /* we’ll draw our own cursor */
+  }
 
-    /* Full-screen stage with responsive background */
-    .stage{position:fixed; inset:0; width:100vw; height:100dvh;
-           background:url('98webbgfin3.png') center/var(--bgfit) no-repeat; overflow:hidden}
+  /* Full-viewport stage + background */
+  .stage{
+    position:fixed; inset:0; width:100vw; height:100dvh;
+    background:url('98webbgfin3.png') center/var(--bgfit) no-repeat;
+    overflow:hidden;
+    touch-action:none; /* keep drags smooth on touch */
+  }
 
-    /* Draggable head */
-    .player{position:absolute; left:calc(var(--player-x) * 1%); top:calc(var(--player-y) * 1%);
-            width:calc(var(--player-w) * 1%); user-select:none; -webkit-user-drag:none; cursor:grab; touch-action:none}
-    .player:active{cursor:grabbing}
-    .player .sprite{position:relative; z-index:2; width:100%; height:auto; display:block; image-rendering:pixelated}
+  /* Head (draggable box) */
+  .player{
+    position:absolute;
+    left:calc(var(--player-x) * 1%); top:calc(var(--player-y) * 1%);
+    width:calc(var(--player-w) * 1%);
+    user-select:none; -webkit-user-drag:none;
+    cursor:grab; touch-action:none;
+  }
+  .player:active{ cursor:grabbing; }
+  .player .sprite{
+    position:relative; z-index:2;
+    width:100%; height:auto; display:block; image-rendering:pixelated;
+    /* KEY: let clicks pass through transparent pixels to the iframe */
+    pointer-events:none;
+  }
 
-    /* Video sits UNDER the PNG so it shows through the transparent screen */
-    .player .screen{position:absolute; z-index:1; left:calc(var(--screen-left) * 1%); top:calc(var(--screen-top) * 1%);
-                    width:calc(var(--screen-w) * 1%); height:calc(var(--screen-h) * 1%);
-                    background:#000; overflow:hidden}
-    .player .screen iframe{position:absolute; inset:0; width:100%; height:100%; border:0}
+  /* Video sits UNDER the PNG, visible through its transparent screen area */
+  .player .screen{
+    position:absolute; z-index:1;
+    left:calc(var(--screen-left) * 1%);
+    top: calc(var(--screen-top) * 1%);
+    width:calc(var(--screen-w) * 1%);
+    height:calc(var(--screen-h) * 1%);
+    background:#000; overflow:hidden;
+  }
+  .player .screen iframe{
+    position:absolute; inset:0; width:100%; height:100%; border:0;
+  }
 
-    /* Draggable AOL window */
-    .aol{position:absolute; left:calc(var(--aol-x) * 1%); top:calc(var(--aol-y) * 1%);
-         width:calc(var(--aol-w) * 1%); user-select:none; -webkit-user-drag:none; cursor:grab; z-index:3; touch-action:none}
-    .aol:active{cursor:grabbing}
-    .aol .sprite{width:100%; height:auto; display:block; image-rendering:pixelated}
+  /* AOL window (draggable box) */
+  .aol{
+    position:absolute;
+    left:calc(var(--aol-x) * 1%); top:calc(var(--aol-y) * 1%);
+    width:calc(var(--aol-w) * 1%);
+    user-select:none; -webkit-user-drag:none;
+    cursor:grab; touch-action:none; z-index:3;
+  }
+  .aol:active{ cursor:grabbing; }
+  .aol .sprite{
+    width:100%; height:auto; display:block; image-rendering:pixelated;
+    pointer-events:none; /* drag the box, not the pixels */
+  }
 
-    /* Custom cursor */
-    #cursor{position:fixed; left:0; top:0; height:32px; width:auto; pointer-events:none;
-            transform:translate(-50%,-50%); image-rendering:pixelated; z-index:9999}
-    #cursor.down{filter:invert(1) hue-rotate(180deg)}
-    .stage, .player, .aol{ touch-action:none; }
-
-    /* Diagnostics banner */
-    .diag{position:fixed;left:12px;bottom:12px;max-width:560px;background:#fff;border:2px solid #b00;box-shadow:0 2px 0 #0003;padding:10px;font:12px/1.3 Tahoma,Verdana,sans-serif;display:none;z-index:10000}
-    .diag strong{color:#b00}
-  </style>
+  /* Custom cursor */
+  #cursor{
+    position:fixed; left:0; top:0; height:32px; width:auto;
+    pointer-events:none; transform:translate(-50%,-50%);
+    image-rendering:pixelated; z-index:9999;
+  }
+  #cursor.down{ filter:invert(1) hue-rotate(180deg) }
+</style>
 </head>
 <body>
-  <main class="stage" id="stage" aria-label="retro desktop background">
-    <!-- Head -->
-    <div class="player" id="player">
-      <img src="media head.png" alt="media head" class="sprite" draggable="false"/>
-      <div class="screen" aria-label="video screen">
-        <iframe id="yt" src="https://www.youtube.com/embed/zYciVG2uOw4?rel=0&modestbranding=1&playsinline=1"
-          title="YouTube player" allow="autoplay; accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
-      </div>
+
+<main class="stage" id="stage" aria-label="retro desktop background">
+  <!-- Head -->
+  <div class="player" id="player">
+    <img src="media head.png" alt="media head" class="sprite" draggable="false"/>
+    <div class="screen" aria-label="video screen">
+      <!-- Click to play with sound -->
+      <iframe id="yt"
+        src="https://www.youtube.com/embed/zYciVG2uOw4?rel=0&modestbranding=1&playsinline=1"
+        title="YouTube player"
+        allow="autoplay; accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+        allowfullscreen></iframe>
     </div>
+  </div>
 
-    <!-- AOL window -->
-    <div class="aol" id="aol">
-      <img src="aoll.png" alt="About window" class="sprite" draggable="false"/>
-    </div>
-  </main>
+  <!-- AOL window -->
+  <div class="aol" id="aol">
+    <img src="aoll.png" alt="About window" class="sprite" draggable="false"/>
+  </div>
+</main>
 
-  <!-- Cursor & click sound -->
-  <img id="cursor" src="mouse 3.gif" alt="" onerror="document.body.style.cursor='auto'; this.remove();"/>
-  <audio id="clickAudio" src="laser.mp3" preload="metadata"></audio>
+<!-- Cursor & click sound -->
+<img id="cursor" src="mouse 3.gif" alt=""
+     onerror="document.body.style.cursor='auto'; this.remove();"/>
+<audio id="clickAudio" src="laser.mp3" preload="metadata"></audio>
 
-  <!-- Diagnostics -->
-  <div id="diag" class="diag"><strong>Something's off</strong><div id="diagMsg"></div></div>
+<script>
+  // Elements
+  const stage  = document.getElementById('stage');
+  const player = document.getElementById('player');
+  const aol    = document.getElementById('aol');
+  const cursor = document.getElementById('cursor');
+  const clickEl= document.getElementById('clickAudio');
 
-  <script>
-  (function(){
-    const diag = document.getElementById('diag');
-    const diagMsg = document.getElementById('diagMsg');
-    function showDiag(html){ try{ diagMsg.innerHTML = html; diag.style.display='block'; }catch(_){} }
-    window.addEventListener('error', (e)=> showDiag('JS error: '+ (e.message||'unknown')));
+  const stageRect = () => stage.getBoundingClientRect();
+  const setVar = (el,n,v)=> el.style.setProperty(n, String(v));
 
-    // Elements
-    const stage = document.getElementById('stage');
-    const player = document.getElementById('player');
-    const aol    = document.getElementById('aol');
-    const cursor = document.getElementById('cursor');
+  // CLICK SOUND (on any press)
+  function clickFx(){ try{ clickEl.currentTime = 0; clickEl.play(); }catch(_){ } }
+  window.addEventListener('pointerdown', ()=>{ cursor?.classList.add('down'); clickFx(); });
+  window.addEventListener('pointerup',   ()=>{ cursor?.classList.remove('down'); });
 
-    const stageRect = () => stage.getBoundingClientRect();
-    const setVar = (el, name, value) => el && el.style.setProperty(name, String(value));
+  // CUSTOM CURSOR FOLLOW
+  function cursorMove(e){
+    const p = e.touches?.[0] || e;
+    if(!cursor || !p) return;
+    cursor.style.left = p.clientX + 'px';
+    cursor.style.top  = p.clientY + 'px';
+  }
+  window.addEventListener('pointermove', cursorMove, {passive:true});
+  window.addEventListener('touchmove',   cursorMove, {passive:true});
+  // If cursor never moves (blocked), show system cursor
+  setTimeout(()=>{ if(cursor && !cursor.style.left){ document.body.style.cursor='auto'; try{cursor.remove();}catch(_){}} }, 1200);
 
-    // ---- Asset sanity (missing files banner) ----
-    (function(){
-      const missing = [];
-      function checkImg(src, label){ const i = new Image(); i.onload=()=>{}; i.onerror=()=>missing.push(label+': '+src); i.src=src; }
-      checkImg('98webbgfin3.png', 'Background');
-      checkImg('media head.png',   'Head PNG');
-      checkImg('aoll.png',         'AOL PNG');
-      checkImg('mouse 3.gif',      'Cursor GIF');
-      setTimeout(()=>{ if(missing.length) showDiag('<ul><li>'+missing.join('</li><li>')+'</li></ul>'); }, 800);
-    })();
+  // DRAG HELPERS
+  function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
+  function pctX(px){ const S = stageRect(); return (px - S.left) / S.width * 100; }
+  function pctY(py){ const S = stageRect(); return (py - S.top)  / S.height * 100; }
 
-    // ---- DRAG HELPERS ----
-    function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
-    function pctX(px){ const S = stageRect(); return (px - S.left) / S.width * 100; }
-    function pctY(py){ const S = stageRect(); return (py - S.top)  / S.height * 100; }
+  // DRAG: HEAD (no autopilot)
+  let draggingH=false, dxH=0, dyH=0;
+  function headDown(e){
+    // Clicking inside the video should NOT drag; let the iframe get the click
+    if(e.target && e.target.closest && e.target.closest('.screen')) return;
+    draggingH = true;
+    try{ player.setPointerCapture?.(e.pointerId); }catch(_){}
+    const r = player.getBoundingClientRect();
+    const p = e.touches?.[0] || e;
+    dxH = p.clientX - r.left; dyH = p.clientY - r.top;
+  }
+  function headMove(e){
+    if(!draggingH) return;
+    const p = e.touches?.[0] || e; const S = stageRect();
+    let x = pctX(p.clientX - dxH + S.left);
+    let y = pctY(p.clientY - dyH + S.top);
+    const pw = player.getBoundingClientRect().width / S.width * 100;
+    x = clamp(x, 0, 100 - pw); y = clamp(y, 0, 100 - 10);
+    setVar(player,'--player-x', x.toFixed(2));
+    setVar(player,'--player-y', y.toFixed(2));
+  }
+  function headUp(){ draggingH=false; }
+  player.addEventListener('pointerdown', headDown);
+  player.addEventListener('touchstart',  headDown, {passive:true});
+  window.addEventListener('pointermove', headMove, {passive:true});
+  window.addEventListener('touchmove',   headMove, {passive:true});
+  window.addEventListener('pointerup',   headUp);
+  window.addEventListener('touchend',    headUp);
 
-    // ---- DRAG: head (no autopilot) ----
-    let dragging = false, dx = 0, dy = 0;
-    function startHead(e){
-      if(e.target && e.target.closest && e.target.closest('.screen')) return; // let video be clickable
-      dragging = true; try{ player.setPointerCapture && player.setPointerCapture(e.pointerId); }catch(_){ }
-      const r = player.getBoundingClientRect(); const p = e.touches?.[0]||e; dx = p.clientX - r.left; dy = p.clientY - r.top; clickFx();
-    }
-    function moveHead(e){ if(!dragging) return; const p = e.touches?.[0]||e; const S = stageRect();
-      let x = pctX(p.clientX - dx + S.left), y = pctY(p.clientY - dy + S.top);
-      const pw = player.getBoundingClientRect().width / S.width * 100;
-      x = clamp(x, 0, 100 - pw); y = clamp(y, 0, 100 - 10);
-      setVar(player, '--player-x', x.toFixed(2)); setVar(player, '--player-y', y.toFixed(2));
-    }
-    function stopHead(){ dragging = false; }
-
-    player.addEventListener('pointerdown', startHead);
-    player.addEventListener('mousedown', startHead);
-    player.addEventListener('touchstart', startHead, {passive:true});
-
-    window.addEventListener('pointermove', moveHead);
-    window.addEventListener('mousemove', moveHead);
-    window.addEventListener('touchmove', moveHead, {passive:true});
-
-    window.addEventListener('pointerup', stopHead);
-    window.addEventListener('mouseup', stopHead);
-    window.addEventListener('touchend', stopHead);
-
-    // ---- DRAG: AOL window ----
-    let draggingA = false, adx = 0, ady = 0;
-    function startAol(e){ draggingA = true; try{ aol.setPointerCapture && aol.setPointerCapture(e.pointerId); }catch(_){ }
-      const r = aol.getBoundingClientRect(); const p = e.touches?.[0]||e; adx = p.clientX - r.left; ady = p.clientY - r.top; clickFx(); }
-    function moveAol(e){ if(!draggingA) return; const p = e.touches?.[0]||e; const S = stageRect();
-      let x = pctX(p.clientX - adx + S.left), y = pctY(p.clientY - ady + S.top);
-      const aw = aol.getBoundingClientRect().width / S.width * 100;
-      x = clamp(x, 0, 100 - aw); y = clamp(y, 0, 100 - 10);
-      setVar(aol, '--aol-x', x.toFixed(2)); setVar(aol, '--aol-y', y.toFixed(2)); }
-    function stopAol(){ draggingA = false; }
-
-    aol.addEventListener('pointerdown', startAol);
-    aol.addEventListener('mousedown', startAol);
-    aol.addEventListener('touchstart', startAol, {passive:true});
-
-    window.addEventListener('pointermove', moveAol);
-    window.addEventListener('mousemove', moveAol);
-    window.addEventListener('touchmove', moveAol, {passive:true});
-
-    window.addEventListener('pointerup', stopAol);
-    window.addEventListener('mouseup', stopAol);
-    window.addEventListener('touchend', stopAol);
-
-    // ---- Cursor follower ----
-    let _moved = false;
-    function cursorMove(e){ if(!cursor) return; const p = e.touches?.[0]||e; cursor.style.left = p.clientX + 'px'; cursor.style.top = p.clientY + 'px'; _moved = true; }
-    window.addEventListener('pointermove', cursorMove);
-    window.addEventListener('mousemove', cursorMove);
-    window.addEventListener('touchmove', cursorMove, {passive:true});
-    window.addEventListener('pointerdown', ()=>{ cursor && cursor.classList.add('down'); clickFx(); });
-    window.addEventListener('pointerup',   ()=>{ cursor && cursor.classList.remove('down'); });
-    setTimeout(()=>{ if(!_moved){ document.body.style.cursor='auto'; try{ cursor && cursor.remove(); }catch(_){} } }, 1200);
-
-    // ---- Click sound helper ----
-    const clickEl = document.getElementById('clickAudio');
-    function clickFx(){ if (!clickEl) return; try { clickEl.currentTime = 0; clickEl.play(); } catch(_) {} }
-
-    // ---- YouTube autoplay (muted) – fire ASAP + retry (idempotent) ----
-    function ytCmd(func,args){} // no autoplay control needed), '*'); } catch(_) {}
-    }
-    function ensureAutoplay(){} // disabled; user will click video to play with sound
-
-    /* autoplay disabled on purpose — user clicks the video itself to play with sound */
-  })();
-  </script>
+  // DRAG: AOL WINDOW
+  let draggingA=false, dxA=0, dyA=0;
+  function aolDown(e){
+    draggingA = true;
+    try{ aol.setPointerCapture?.(e.pointerId); }catch(_){}
+    const r = aol.getBoundingClientRect();
+    const p = e.touches?.[0] || e;
+    dxA = p.clientX - r.left; dyA = p.clientY - r.top;
+  }
+  function aolMove(e){
+    if(!draggingA) return;
+    const p = e.touches?.[0] || e; const S = stageRect();
+    let x = pctX(p.clientX - dxA + S.left);
+    let y = pctY(p.clientY - dyA + S.top);
+    const aw = aol.getBoundingClientRect().width / S.width * 100;
+    x = clamp(x, 0, 100 - aw); y = clamp(y, 0, 100 - 10);
+    setVar(aol,'--aol-x', x.toFixed(2));
+    setVar(aol,'--aol-y', y.toFixed(2));
+  }
+  function aolUp(){ draggingA=false; }
+  aol.addEventListener('pointerdown', aolDown);
+  aol.addEventListener('touchstart',  aolDown, {passive:true});
+  window.addEventListener('pointermove', aolMove, {passive:true});
+  window.addEventListener('touchmove',   aolMove, {passive:true});
+  window.addEventListener('pointerup',   aolUp);
+  window.addEventListener('touchend',    aolUp);
+</script>
 </body>
 </html>
