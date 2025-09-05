@@ -163,16 +163,46 @@
     // If the custom cursor never moved (e.g., some browser blocks events), fall back to system cursor.
     setTimeout(()=>{ if(!_moved){ document.body.style.cursor='auto'; cursor?.remove(); } }, 1200);
 
-    // ---- Click sound & YouTube autoplay (muted) ----
-    const clickEl = document.getElementById('clickAudio');
-    const prime = () => {
-      clickEl?.play()?.then(()=>{ clickEl.pause(); clickEl.currentTime = 0; }).catch(()=>{});
-      const yt = document.getElementById('yt');
-      const cmd = (func,args)=>{ try{ yt?.contentWindow?.postMessage(JSON.stringify({event:'command', func, args: args||[]}), '*'); }catch(_){} };
-      cmd('mute'); cmd('playVideo');
-      window.removeEventListener('pointerdown', prime);
-      window.removeEventListener('keydown', prime);
-      window.removeEventListener('touchstart', prime);
+   <script>
+  // ---- Click sound helper (used by drag handlers) ----
+  const clickEl = document.getElementById('clickAudio');
+  function clickFx(){
+    if (!clickEl) return;
+    try { clickEl.currentTime = 0; clickEl.play(); } catch(_) {}
+  }
+
+  // ---- YouTube autoplay (muted) – fire ASAP + retry ----
+  function ytCmd(func, args){
+    const yt = document.getElementById('yt');
+    try {
+      yt?.contentWindow?.postMessage(
+        JSON.stringify({event:'command', func, args: args||[]}),
+        '*'
+      );
+    } catch (_) {}
+  }
+  function ensureAutoplay(){
+    ytCmd('mute');
+    ytCmd('playVideo');
+  }
+
+  // Try on doc ready / load, then a few delayed retries
+  ['DOMContentLoaded','load'].forEach(ev =>
+    window.addEventListener(ev, () => setTimeout(ensureAutoplay, 50))
+  );
+  [300, 1000, 2000, 4000].forEach(t => setTimeout(ensureAutoplay, t));
+
+  // If the tab becomes visible again, try once more
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) ensureAutoplay();
+  });
+
+  // Optional fallback: if a user does click/tap, also trigger play (keeps it muted)
+  window.addEventListener('pointerdown', ensureAutoplay, { once:false });
+  window.addEventListener('touchstart', ensureAutoplay, { once:false, passive:true });
+  window.addEventListener('keydown', ensureAutoplay, { once:false });
+</script>
+
     };
     window.addEventListener('pointerdown', prime, {once:true});
     window.addEventListener('keydown', prime,  {once:true});
