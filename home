@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>aniiidroid · retro desktop</title>
+  <style>
+    /* ======= QUICK SETUP (rename your files to match) =======
+       Place these three files next to index.html in your repo:
+       - 98webbgfin2.png   (background without the head)
+       - media-head.png    (green head PNG w/ transparent screen)
+       - mouse.gif         (your yellow dragon cursor GIF)
+       Replace VIDEO_ID below with your YouTube ID.                */
+
+    :root{
+      --stage-w: 1228;           /* base background width  (px)  */
+      --stage-h: 768;            /* base background height (px)  */
+
+      /* Player position/size (percent of stage) */
+      --player-x: 21;            /* left %  */
+      --player-y: 14;            /* top  %  */
+      --player-w: 58;            /* width % */
+
+      /* Screen box inside the head (as % of player box) */
+      --screen-left: 38.5;       /* tune these four to align the iframe */
+      --screen-top: 16.5;
+      --screen-w: 23.5;
+      --screen-h: 29.5;
+
+      /* AOL note area (overlay a Win98-like textarea) */
+      --aol-left: 73.2;          /* % of stage width */
+      --aol-top: 54.7;           /* % of stage height */
+      --aol-w: 23.0;             /* % of stage width */
+      --aol-h: 20.5;             /* % of stage height */
+
+      --accent: #0b7a21;         /* subtle focus color */
+    }
+
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0}
+    body{background:#061607;color:#000;font-family:Tahoma,Verdana,system-ui,sans-serif;}
+
+    /* Center the stage; keep the exact aspect so overlays line up. */
+    .wrap{display:grid;place-items:center;min-height:100dvh;}
+    .stage{position:relative; width:min(100vw, calc(100vh * (var(--stage-w)/var(--stage-h))));
+           height:calc((var(--stage-h)/var(--stage-w)) * 100%);
+           background: url('98webbgfin2.png') center/100% 100% no-repeat; overflow:hidden;}
+
+    /* Draggable Player (green head) */
+    .player{position:absolute; left:calc(var(--player-x) * 1%);
+            top:calc(var(--player-y) * 1%); width:calc(var(--player-w) * 1%);
+            user-select:none; -webkit-user-drag:none; cursor:grab;}
+    .player:active{cursor:grabbing}
+    .player .sprite{width:100%; height:auto; display:block; image-rendering:pixelated;}
+
+    /* Screen overlay inside the player */
+    .player .screen{position:absolute; left:calc(var(--screen-left) * 1%);
+                    top:calc(var(--screen-top) * 1%);
+                    width:calc(var(--screen-w) * 1%);
+                    height:calc(var(--screen-h) * 1%);
+                    border:2px solid #0b0b0b; box-shadow: inset 0 0 0 2px #000;
+                    background:#000; overflow:hidden;}
+    .player .screen iframe{position:absolute; inset:0; width:100%; height:100%; border:0}
+
+    /* AOL Note (editable text area) */
+    .aol{position:absolute; left:calc(var(--aol-left) * 1%); top:calc(var(--aol-top) * 1%);
+         width:calc(var(--aol-w) * 1%); height:calc(var(--aol-h) * 1%);
+         resize:none; padding:6px; background:#fff; color:#111; font-size:12px; line-height:1.35;
+         border:2px solid; border-color:#fff #000 #000 #fff; outline:none;}
+    .aol:focus{outline:2px solid var(--accent)}
+
+    /* Custom cursor follower (uses your GIF, fully invertible on click) */
+    body{cursor:none}
+    #cursor{position:fixed; left:0; top:0; height:32px; width:auto; pointer-events:none;
+            transform:translate(-50%,-50%); image-rendering:pixelated; z-index:9999;}
+    #cursor.down{filter:invert(1) hue-rotate(180deg)}
+
+    /* Win98-ish scrollbars for Firefox */
+    textarea{scrollbar-color:#bdbdbd #f0f0f0}
+
+    /* Respect reduced motion: stop autopilot */
+    @media (prefers-reduced-motion: reduce){ .autopilot{animation:none!important} }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <main class="stage" id="stage" aria-label="retro desktop background">
+      <!-- Draggable media player head -->
+      <div class="player" id="player">
+        <img src="media-head.png" alt="media head" class="sprite" draggable="false"/>
+        <div class="screen" aria-label="video screen">
+          <!-- Replace VIDEO_ID with your video id -->
+          <iframe id="yt" src="https://www.youtube.com/embed/zYciVG2uOw4?si=OspfuIIxrMey4MUw&modestbranding=1&playsinline=1"
+            title="YouTube player" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+        </div>
+      </div>
+
+      <!-- Editable AOL-style note area -->
+      <textarea id="aol" class="aol" spellcheck="false" placeholder="aniiidroid:"></textarea>
+    </main>
+  </div>
+
+  <!-- Custom cursor follower -->
+  <img id="cursor" src="mouse-3.gif" alt="" />
+
+  <!-- Click sound asset -->
+  <audio id="clickAudio" src="laser.mp3" preload="auto"></audio>
+
+  <script>
+    /* ---------- Helper: percent <-> px on the stage ---------- */
+    const stage = document.getElementById('stage');
+    const player = document.getElementById('player');
+    function stageRect(){ return stage.getBoundingClientRect(); }
+    function setVar(el, name, value){ el.style.setProperty(name, String(value)); }
+
+    /* ---------- Draggable + gentle autopilot bounce ---------- */
+    let dragging = false, dx=0, dy=0, idleTimer=null;
+    let vx = 0.04, vy = 0.03; // % per frame-ish; gentle drift
+    let autopilot = true;
+
+    const sprite = player.querySelector('.sprite');
+    sprite.addEventListener('mousedown', startDrag);
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', stopDrag);
+
+    function startDrag(e){
+      dragging = true; autopilot = false; killIdle();
+      const r = player.getBoundingClientRect();
+      dx = e.clientX - r.left; dy = e.clientY - r.top;
+      clickFx(); // also play the click when grabbing the head
+    }
+    function onMove(e){
+      // Move custom cursor image
+      cursorMove(e);
+      if(!dragging) return;
+      const S = stageRect();
+      let x = ((e.clientX - S.left - dx) / S.width) * 100;
+      let y = ((e.clientY - S.top  - dy) / S.height) * 100;
+      // keep inside stage
+      const pw = parseFloat(getComputedStyle(player).width) / S.width * 100; // % width
+      x = Math.max(0, Math.min(100 - pw, x)); y = Math.max(0, Math.min(100 - 10, y));
+      setVar(player, '--player-x', x.toFixed(2));
+      setVar(player, '--player-y', y.toFixed(2));
+    }
+    function stopDrag(){
+      if(!dragging) return;
+      dragging = false; idleResume();
+    }
+    function idleResume(){ idleTimer = setTimeout(()=>{ autopilot = true; }, 3000); }
+    function killIdle(){ if(idleTimer){ clearTimeout(idleTimer); idleTimer=null; } }
+
+    function tick(){
+      if(autopilot){
+        const S = stageRect();
+        const pw = player.getBoundingClientRect().width / S.width * 100;
+        let x = parseFloat(getComputedStyle(player).getPropertyValue('--player-x')) || 0;
+        let y = parseFloat(getComputedStyle(player).getPropertyValue('--player-y')) || 0;
+        x += vx; y += vy;
+        if(x <= 0 || x >= 100 - pw) vx *= -1;
+        if(y <= 0 || y >= 100 - 12)  vy *= -1; // keep above taskbar-ish
+        setVar(player, '--player-x', x);
+        setVar(player, '--player-y', y);
+      }
+      requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+
+    /* ---------- Custom cursor follower w/ invert-on-click ---------- */
+    const cursor = document.getElementById('cursor');
+    function cursorMove(e){ cursor.style.left = e.clientX + 'px'; cursor.style.top = e.clientY + 'px'; }
+    window.addEventListener('mousemove', cursorMove);
+    window.addEventListener('pointerdown', ()=>{ cursor.classList.add('down'); clickFx(); });
+    window.addEventListener('pointerup',   ()=> cursor.classList.remove('down'));
+
+    // Optional: press `c` to toggle system cursor for debugging
+    window.addEventListener('keydown', (e)=>{
+      if(e.key==='c') document.body.style.cursor = (document.body.style.cursor==='none'?'auto':'none');
+    });
+
+    /* ---------- Click sound using your audio file (laser.mp3) ---------- */
+    const clickEl = document.getElementById('clickAudio');
+    // Prime audio on first gesture (mobile browsers often require it)
+    const prime = () => {
+      clickEl?.play()?.then(()=>{ clickEl.pause(); clickEl.currentTime = 0; }).catch(()=>{});
+      window.removeEventListener('pointerdown', prime);
+      window.removeEventListener('keydown', prime);
+    };
+    window.addEventListener('pointerdown', prime, { once:true });
+    window.addEventListener('keydown', prime, { once:true });
+
+    function clickFx(){
+      if (clickEl) {
+        try { clickEl.currentTime = 0; clickEl.play(); return; } catch(e){}
+      }
+      // Fallback tiny synth beep if the audio file can't play
+      try{
+        if(!window._actx) window._actx = new (window.AudioContext||window.webkitAudioContext)();
+        const o = _actx.createOscillator();
+        const g = _actx.createGain();
+        const t = _actx.currentTime;
+        o.type='square'; o.frequency.value=2200; g.gain.value=0.0001;
+        o.connect(g); g.connect(_actx.destination);
+        g.gain.exponentialRampToValueAtTime(0.06, t+0.001);
+        g.gain.exponentialRampToValueAtTime(0.0001, t+0.06);
+        o.start(t); o.stop(t+0.06);
+      }catch(_){}
+    }
+
+    /* ---------- Ensure iframe keeps ratio on iOS */
+    // Nothing special required; we use absolute inset:0; but keep playsinline for mobile.
+  </script>
+</body>
+</html>
