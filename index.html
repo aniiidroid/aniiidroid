@@ -74,6 +74,13 @@
   /* Tiny on-screen toggle for Guide mode */
   #guideBtn{position:fixed;left:10px;bottom:10px;z-index:10002;font:12px Tahoma, sans-serif;padding:4px 8px;background:#c0c7c8;border:2px solid; border-color:#fff #000 #000 #fff; cursor:pointer;}
   body.guide #guideBtn{background:#a8c0ff}
+  /* On-screen nudge controls for when keyboard focus is tricky */
+  #nudge{position:fixed;left:10px;top:48px;z-index:10002;display:none;grid-template-columns:repeat(3,28px);gap:4px}
+  body.guide #nudge{display:grid}
+  #nudge button{width:28px;height:24px;font:12px Tahoma, sans-serif;background:#c0c7c8;border:2px solid;border-color:#fff #000 #000 #fff;cursor:pointer}
+  #nudge .wide{grid-column: span 3}
+
+  body.guide #guideBtn{background:#a8c0ff}
 </style>
 </head>
 <body>
@@ -93,6 +100,16 @@
 
   <div id="hud">Guide ON — adjust screen cutout: <kbd>WASD</kbd> move, <kbd>Q/E</kbd> width, <kbd>Z/X</kbd> height, <kbd>K</kbd> copy CSS, <kbd>G</kbd> to exit.<br><span id="hudvals"></span></div>
   <button id="guideBtn" type="button" aria-label="Toggle guide">Guide</button>
+  <div id="nudge" aria-label="Nudge controls">
+    <button data-k="w">↑</button>
+    <button data-k="q">–W</button>
+    <button data-k="e">+W</button>
+    <button data-k="a">←</button>
+    <button data-k="s">↓</button>
+    <button data-k="d">→</button>
+    <button class="wide" data-k="z">–H</button>
+    <button class="wide" data-k="x">+H</button>
+  </div>
   <div id="diag" class="diag"><strong>Asset check failed</strong><div id="diagMsg"></div><div style="margin-top:6px;opacity:.7">Tip: press <kbd>c</kbd> to toggle the system cursor.</div></div>
   <img id="cursor" src="mouse 3.gif" alt="" onerror="document.body.style.cursor='auto'; this.remove(); console.warn('Cursor GIF not found');"/>
   <audio id="clickAudio" src="laser.mp3" preload="auto"></audio>
@@ -230,6 +247,12 @@
       function toggle(){ document.body.classList.toggle('guide'); render(); }
       window.__toggleGuide = toggle; // expose for console if needed
       btn?.addEventListener('click', toggle);
+      // On-screen nudge buttons
+      document.getElementById('nudge')?.addEventListener('click', (ev)=>{
+        const k = ev.target?.getAttribute('data-k'); if(!k) return; const e = { key:k, shiftKey:false, preventDefault:()=>{} };
+        // Simulate the same handler by dispatching a synthetic key
+        const evt = new KeyboardEvent('keydown', { key: k }); window.dispatchEvent(evt);
+      });
       // Auto-enable if URL has #guide or ?guide=1
       const qs = new URLSearchParams(location.search);
       if(location.hash.includes('guide') || qs.get('guide')==='1'){ document.body.classList.add('guide'); render(); }
