@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>aniiidroid · retro desktop (v7)</title>
+<title>aniiidroid · retro desktop (v8)</title>
 <style>
   :root{
     /* Head placement on page (percent of page) */
@@ -22,6 +22,10 @@
 
     /* Background fit */
     --bgfit: contain;
+
+    /* Desktop icon size (RESPONSIVE) */
+    /* >>> EDIT HERE to control icon/button scaling across window sizes <<< */
+    --icon-sz: clamp(64px, 8vw, 112px);
 
     /* Z layering */
     --z-icons: 2;      /* desktop icons */
@@ -78,16 +82,15 @@
   .sc-wrap iframe{ width:100%; border:0 }
 
   /* Desktop icons (middle, behind windows) */
-  .icons{ position:absolute; left:50%; top:52%; transform:translate(-50%,-50%); display:grid; grid-template-columns:repeat(4, 110px); grid-auto-rows: 120px; gap:14px; z-index:var(--z-icons) }
-  .icon{ width:108px; height:110px; display:grid; place-items:center; cursor:pointer; background:transparent; border:0; padding:0; appearance:none; -webkit-appearance:none }
+  .icons{ position:absolute; left:50%; top:52%; transform:translate(-50%,-50%); display:grid; grid-template-columns:repeat(4, var(--icon-sz)); grid-auto-rows: var(--icon-sz); gap: clamp(12px, 1.6vw, 18px); z-index:var(--z-icons) }
+  .icon{ width:var(--icon-sz); height:var(--icon-sz); display:grid; place-items:center; cursor:pointer; background:transparent; border:0; padding:0; appearance:none; -webkit-appearance:none }
   .icon:focus{ outline:2px solid rgba(0,255,122,.6); outline-offset:2px }
   .icon img{ max-width:100%; max-height:100%; image-rendering:pixelated; pointer-events:none; filter:none }
 
-  /* Recycle icon (JS positions it; plus a pulse so you can find it) */
-  #iconRecycle{ position:fixed; z-index:var(--z-icons) }
-  #iconRecycle.hot{ filter:drop-shadow(0 0 8px rgba(0,255,122,.7)); transform:scale(1.06) }
-  @keyframes ping { 0%{ transform:scale(1) } 50%{ transform:scale(1.14) } 100%{ transform:scale(1) } }
-  #iconRecycle.ping{ animation: ping .9s ease-in-out 2 }
+  /* Recycle icon anchored bottom-right (FIRST ITERATION) */
+  /* >>> EDIT HERE to move it wherever you like <<< */
+  #iconRecycle{ position:fixed; right:48px; bottom:56px; z-index:var(--z-icons); transition:transform .08s ease }
+  #iconRecycle.hot{ transform:scale(1.08); filter:drop-shadow(0 0 8px rgba(0,255,122,.7)) }
 
   /* Draggable helpers for anything that pops */
   .pop{ position:absolute; z-index:var(--z-popups); touch-action:none }
@@ -149,13 +152,11 @@
   const cursor = document.getElementById('cursor');
   const clickEl= document.getElementById('clickAudio');
   const recycleIcon = document.getElementById('iconRecycle');
-  const iconsGrid = document.querySelector('.icons');
 
   const yt = document.getElementById('yt');
   const YT_PLAYLIST = 'https://www.youtube.com/embed/videoseries?list=PLu5_M7wgzi0PtRH4YW5YN74MMQfqM6_g9&rel=0&modestbranding=1&playsinline=1';
 
   const stageRect = () => stage.getBoundingClientRect();
-  const setVar = (el,n,v)=> el.style.setProperty(n, String(v));
 
   // CLICK SOUND (on any press)
   function clickFx(){ try{ clickEl.currentTime = 0; clickEl.play(); }catch(_){ } }
@@ -174,42 +175,6 @@
   function pctY(py){ const S = stageRect(); return (py - S.top)  / S.height * 100; }
   function overlaps(a,b){ const r1=a.getBoundingClientRect(), r2=b.getBoundingClientRect(); return !(r1.right<r2.left||r1.left>r2.right||r1.bottom<r2.top||r1.top>r2.bottom); }
 
-  // >>> EDIT HERE: distance from the icon grid to the recycle can (px)
-  const RECYCLE_OFFSET = { dx: 240, dy: 160 };
-  const RECYCLE_MARGIN = 16; // min px margin from viewport edge
-
-  function positionRecycle(){
-    const r = iconsGrid.getBoundingClientRect();
-    let x = r.right + RECYCLE_OFFSET.dx;
-    let y = r.bottom + RECYCLE_OFFSET.dy;
-    const el = recycleIcon; el.style.position='fixed';
-    const w = el.getBoundingClientRect().width || 64; const h = el.getBoundingClientRect().height || 64;
-    x = clamp(x, RECYCLE_MARGIN, window.innerWidth  - w - RECYCLE_MARGIN);
-    y = clamp(y, RECYCLE_MARGIN, window.innerHeight - h - RECYCLE_MARGIN);
-    el.style.left = x + 'px'; el.style.top = y + 'px';
-  }
-
-  function bringBin(){
-    // failsafe: snap bin to bottom-right and ping so you can find it
-    const el = recycleIcon; const w = el.getBoundingClientRect().width || 64; const h = el.getBoundingClientRect().height || 64;
-    el.style.left = (window.innerWidth - w - 28) + 'px';
-    el.style.top  = (window.innerHeight - h - 36) + 'px';
-    el.classList.add('ping'); setTimeout(()=>el.classList.remove('ping'), 1400);
-  }
-
-  // Reposition bin on load/resize; if it's off-screen, bring it back
-  function safePositionBin(){
-    positionRecycle();
-    const r = recycleIcon.getBoundingClientRect();
-    const out = (r.right < 0 || r.bottom < 0 || r.left > window.innerWidth || r.top > window.innerHeight);
-    if(out) bringBin();
-  }
-  window.addEventListener('resize', safePositionBin);
-  window.addEventListener('load',   safePositionBin);
-
-  // Keyboard finder: press "B" to snap bin to bottom-right
-  window.addEventListener('keydown', (e)=>{ if((e.key||'').toLowerCase()==='b'){ bringBin(); } });
-
   // Generic draggable for any .pop element (supports slight overflow past LEFT/TOP)
   function makeDraggable(el, opts={}){
     let dragging=false, dx=0, dy=0; el.style.left = el.style.left || '10%'; el.style.top = el.style.top || '10%';
@@ -217,6 +182,7 @@
     const minXpct = parseFloat(el.dataset.minx ?? opts.minx ?? '0');
     function down(e){ dragging=true; el.classList.add('dragging'); try{ el.setPointerCapture?.(e.pointerId);}catch(_){} const r=el.getBoundingClientRect(); const p=e.touches?.[0]||e; dx=p.clientX-r.left; dy=p.clientY-r.top; }
     function move(e){ if(!dragging) return; const p=e.touches?.[0]||e; const S=stageRect(); let x=pctX(p.clientX-dx+S.left); let y=pctY(p.clientY-dy+S.top); const ew=el.getBoundingClientRect().width/S.width*100; x=clamp(x,minXpct,100-ew); y=clamp(y,minYpct,100-10); el.style.left=x+'%'; el.style.top=y+'%'; if(el===mp3Win) positionScUnderMp3();
+      // highlight recycle only, do NOT delete until release
       if(overlaps(el, recycleIcon)) recycleIcon.classList.add('hot'); else recycleIcon.classList.remove('hot');
     }
     function up(){ if(!dragging) return; dragging=false; el.classList.remove('dragging'); const shouldTrash = overlaps(el, recycleIcon); recycleIcon.classList.remove('hot'); if(shouldTrash) handleTrash(el); }
@@ -256,7 +222,7 @@
     scWrap.style.display = 'none'; recycleIcon.classList.remove('hot');
   }
 
-  // SoundCloud under-the-png positioning (and width sync) — NEVER behind
+  // SoundCloud under-the-png positioning (and width sync)
   const SC = { gap: 8, height: 300, margin: 12 };
   function positionScUnderMp3(){
     scWrap.style.display = 'block';
@@ -303,9 +269,7 @@
     while(pts.length<n){ pts.push({x: 12 + pts.length*16, y: 16 + (pts.length%2)*18}); }
     return pts;
   }
-
-  // Kick things off
-  safePositionBin();
 </script>
 </body>
 </html>
+
