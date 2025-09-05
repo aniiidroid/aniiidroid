@@ -5,295 +5,149 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>aniiidroid · retro desktop</title>
   <style>
-    /* ======= QUICK SETUP =======
-       Put these files NEXT TO index.html (same folder):
-       - 98webbgfin2.png   (background without the head)
-       - media head.png    (green head PNG, transparent screen)
-       - aoll.png          (AOL "About" window PNG)
-       - mouse 3.gif       (custom cursor GIF)
-       - laser.mp3         (click sound)
-       Replace the YouTube VIDEO_ID below with yours. */
+    /* ======= MANUAL KNOBS (edit these) =======
+       Files next to index.html: 98webbgfin2.png, media head.png, aoll.png, mouse 3.gif, laser.mp3
 
+       ▶ Head screen (YouTube) position & size — values are % of the GREEN HEAD box
+         - left/top move the video window inside the head
+         - w/h change its size inside the head
+         Example: increase --screen-w to make the video wider, move --screen-left to shift right
+    */
     :root{
-      --stage-w: 1228;         /* background width  in px  */
-      --stage-h: 768;          /* background height in px  */
+      /* Head box placement on the page (percent of full page) */
+      --player-x: 21;   /* left %  of page */
+      --player-y: 14;   /* top  %  of page */
+      --player-w: 58;   /* width % of page */
 
-      /* Player position/size (percent of stage) */
-      --player-x: 21;          /* left %  */
-      --player-y: 14;          /* top  %  */
-      --player-w: 58;          /* width % */
+      /* Video window inside the head (percent of the head box) */
+      --screen-left: 41.0; /* % from head's left edge */
+      --screen-top:  20.0; /* % from head's top  edge */
+      --screen-w:    18.8; /* width  % of head */
+      --screen-h:    21.0; /* height % of head */
 
-      /* Screen box inside the head (as % of player box) */
-      --screen-left: 41.0;     /* tune these four to align the iframe */
-      --screen-top: 20.0;
-      --screen-w: 18.8;
-      --screen-h: 21.0;
+      /* AOL window default placement */
+      --aol-x: 73;  --aol-y: 54;  --aol-w: 22;
 
-      --accent: #0b7a21;
-      /* Background fit: use 'contain' to keep full image visible on any screen
-         or change to 'cover' to fill (may crop). */
+      /* Always show the full background image (no cropping). Use 'cover' if you prefer full-bleed. */
       --bgfit: contain;
-      /* AOL window position/size (percent of stage) */
-      --aol-x: 73;   /* left % */
-      --aol-y: 54;   /* top %  */
-      --aol-w: 22;   /* width % */
     }
 
     *{box-sizing:border-box}
     html,body{height:100%;margin:0}
     body{background:#061607;color:#000;font-family:Tahoma,Verdana,system-ui,sans-serif;cursor:none}
 
-    /* Center the fixed-aspect stage so overlays line up */
-    .wrap{display:grid;place-items:center;min-height:100dvh}
-    .stage{position:fixed; inset:0; width:100vw; height:100dvh; background:url('98webbgfin2.png') center/var(--bgfit, cover) no-repeat; overflow:hidden}
+    /* Full-screen stage with responsive background */
+    .stage{position:fixed; inset:0; width:100vw; height:100dvh;
+           background:url('98webbgfin2.png') center/var(--bgfit) no-repeat; overflow:hidden}
 
-    /* Draggable Player (green head) */
-    .player{position:absolute; left:calc(var(--player-x) * 1%);
-            top:calc(var(--player-y) * 1%); width:calc(var(--player-w) * 1%);
-            user-select:none; -webkit-user-drag:none; cursor:grab}
+    /* Draggable head */
+    .player{position:absolute; left:calc(var(--player-x) * 1%); top:calc(var(--player-y) * 1%);
+            width:calc(var(--player-w) * 1%); user-select:none; -webkit-user-drag:none; cursor:grab; touch-action:none}
     .player:active{cursor:grabbing}
     .player .sprite{position:relative; z-index:2; width:100%; height:auto; display:block; image-rendering:pixelated}
 
-    /* Put the video UNDER the head image so it shows through the transparent screen */
-    .player .screen{position:absolute; z-index:1; left:calc(var(--screen-left) * 1%); top:calc(var(--screen-top) * 1%); width:calc(var(--screen-w) * 1%); height:calc(var(--screen-h) * 1%); background:#000; overflow:hidden; border:none; box-shadow:none}
+    /* Video sits UNDER the PNG so it shows through the transparent screen */
+    .player .screen{position:absolute; z-index:1; left:calc(var(--screen-left) * 1%); top:calc(var(--screen-top) * 1%);
+                    width:calc(var(--screen-w) * 1%); height:calc(var(--screen-h) * 1%);
+                    background:#000; overflow:hidden}
     .player .screen iframe{position:absolute; inset:0; width:100%; height:100%; border:0}
 
     /* Draggable AOL window */
-    .aol{position:absolute; left:calc(var(--aol-x) * 1%); top:calc(var(--aol-y) * 1%); width:calc(var(--aol-w) * 1%); user-select:none; -webkit-user-drag:none; cursor:grab; z-index:3}
+    .aol{position:absolute; left:calc(var(--aol-x) * 1%); top:calc(var(--aol-y) * 1%);
+         width:calc(var(--aol-w) * 1%); user-select:none; -webkit-user-drag:none; cursor:grab; z-index:3; touch-action:none}
     .aol:active{cursor:grabbing}
     .aol .sprite{width:100%; height:auto; display:block; image-rendering:pixelated}
-    /* Prevent browser gestures from hijacking drags */
-    .player, .aol{ touch-action: none; }
 
-    /* Custom cursor follower (uses your GIF, inverts on click) */
+    /* Custom cursor */
     #cursor{position:fixed; left:0; top:0; height:32px; width:auto; pointer-events:none;
             transform:translate(-50%,-50%); image-rendering:pixelated; z-index:9999}
     #cursor.down{filter:invert(1) hue-rotate(180deg)}
-
-    /* Diagnostics banner (shows if assets are missing) */
-    .diag{position:fixed;left:12px;bottom:56px;max-width:520px;background:#fff;border:2px solid #b00;box-shadow:0 2px 0 #0003;padding:10px;font-size:12px;display:none;z-index:10000}
-    .diag strong{color:#b00}
-    /* Guide mode: show screen box + allow keyboard nudging */
-  #hud{position:fixed;left:10px;top:10px;background:#000c;color:#fff;padding:8px 10px;border:1px solid #fff;font:12px/1.3 Tahoma, Verdana, sans-serif;display:none;z-index:10001}
-  #hud kbd{background:#fff;color:#000;padding:1px 3px;border:1px solid #333}
-  body.guide #hud{display:block}
-  body.guide .player .screen{outline:2px dashed rgba(255,0,0,.85)}
-  body.guide .player .screen iframe{pointer-events:none}
-  /* Tiny on-screen toggle for Guide mode */
-  #guideBtn{position:fixed;left:10px;bottom:10px;z-index:10002;font:12px Tahoma, sans-serif;padding:4px 8px;background:#c0c7c8;border:2px solid; border-color:#fff #000 #000 #fff; cursor:pointer;}
-  body.guide #guideBtn{background:#a8c0ff}
-  /* On-screen nudge controls for when keyboard focus is tricky */
-  #nudge{position:fixed;left:10px;top:48px;z-index:10002;display:none;grid-template-columns:repeat(3,28px);gap:4px}
-  body.guide #nudge{display:grid}
-  #nudge button{width:28px;height:24px;font:12px Tahoma, sans-serif;background:#c0c7c8;border:2px solid;border-color:#fff #000 #000 #fff;cursor:pointer}
-  #nudge .wide{grid-column: span 3}
-
-  body.guide #guideBtn{background:#a8c0ff}
-</style>
+  </style>
 </head>
 <body>
-  <div class="wrap">
-    <main class="stage" id="stage" aria-label="retro desktop background" tabindex="-1">
-      <!-- Draggable media player head -->
-      <div class="player" id="player">
-        <img src="media head.png" alt="media head" class="sprite" draggable="false"/>
-        <div class="screen" aria-label="video screen">
-          <!-- Replace VIDEO_ID with your YouTube ID -->
-          <iframe id="yt" src="https://www.youtube.com/embed/zYciVG2uOw4?rel=0&modestbranding=1&playsinline=1&autoplay=1&mute=1&enablejsapi=1"
-            title="YouTube player" allow="autoplay; accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
-        </div>
+  <main class="stage" id="stage" aria-label="retro desktop background">
+    <!-- Head -->
+    <div class="player" id="player">
+      <img src="media head.png" alt="media head" class="sprite" draggable="false"/>
+      <div class="screen" aria-label="video screen">
+        <iframe id="yt" src="https://www.youtube.com/embed/zYciVG2uOw4?rel=0&modestbranding=1&playsinline=1&autoplay=1&mute=1&enablejsapi=1"
+          title="YouTube player" allow="autoplay; accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
       </div>
-      <!-- Draggable AOL window overlay -->
-      <div class="aol" id="aol">
-        <img src="aoll.png" alt="About window" class="sprite" draggable="false"/>
-      </div>
-    </main>
-  </div>
+    </div>
 
-  <div id="hud">Guide ON — adjust screen cutout: <kbd>WASD</kbd> move, <kbd>Q/E</kbd> width, <kbd>Z/X</kbd> height, <kbd>K</kbd> copy CSS, <kbd>G</kbd> to exit.<br><span id="hudvals"></span></div>
-  <button id="guideBtn" type="button" aria-label="Toggle guide">Guide</button>
-  <div id="nudge" aria-label="Nudge controls">
-    <button data-k="w">↑</button>
-    <button data-k="q">–W</button>
-    <button data-k="e">+W</button>
-    <button data-k="a">←</button>
-    <button data-k="s">↓</button>
-    <button data-k="d">→</button>
-    <button class="wide" data-k="z">–H</button>
-    <button class="wide" data-k="x">+H</button>
-  </div>
-  <div id="diag" class="diag"><strong>Asset check failed</strong><div id="diagMsg"></div><div style="margin-top:6px;opacity:.7">Tip: press <kbd>c</kbd> to toggle the system cursor.</div></div>
-  <img id="cursor" src="mouse 3.gif" alt="" onerror="document.body.style.cursor='auto'; this.remove(); console.warn('Cursor GIF not found');"/>
+    <!-- AOL window -->
+    <div class="aol" id="aol">
+      <img src="aoll.png" alt="About window" class="sprite" draggable="false"/>
+    </div>
+  </main>
+
+  <!-- Cursor & click sound -->
+  <img id="cursor" src="mouse 3.gif" alt="" onerror="document.body.style.cursor='auto'; this.remove();"/>
   <audio id="clickAudio" src="laser.mp3" preload="auto"></audio>
 
   <script>
-    /* ---------- Helpers ---------- */
+    // Elements
     const stage = document.getElementById('stage');
     const player = document.getElementById('player');
+    const aol    = document.getElementById('aol');
     const cursor = document.getElementById('cursor');
-    const aol = document.getElementById('aol');
 
-    function stageRect(){ return stage.getBoundingClientRect(); }
-    function setVar(el, name, value){ el.style.setProperty(name, String(value)); }
+    const stageRect = () => stage.getBoundingClientRect();
+    const setVar = (el, name, value) => el.style.setProperty(name, String(value));
 
-    /* ---------- Draggable + gentle autopilot bounce ---------- */
-    let dragging = false, dx=0, dy=0, idleTimer=null;
-    let vx = 0.04, vy = 0.03; // % per frame-ish; gentle drift
-    let autopilot = false;
+    // ---- DRAG: head (no autopilot) ----
+    let dragging = false, dx = 0, dy = 0;
+    player.addEventListener('pointerdown', (e)=>{
+      if(e.target && e.target.closest && e.target.closest('.screen')) return; // allow video controls
+      dragging = true; try{ player.setPointerCapture(e.pointerId); }catch(_){}
+      const r = player.getBoundingClientRect(); dx = e.clientX - r.left; dy = e.clientY - r.top; clickFx();
+    });
+    window.addEventListener('pointermove', (e)=>{
+      cursorMove(e);
+      if(!dragging) return; const S = stageRect();
+      let x = ((e.clientX - S.left - dx)/S.width)*100;
+      let y = ((e.clientY - S.top  - dy)/S.height)*100;
+      const pw = player.getBoundingClientRect().width / S.width * 100;
+      x = Math.max(0, Math.min(100 - pw, x)); y = Math.max(0, Math.min(100 - 10, y));
+      setVar(player, '--player-x', x.toFixed(2)); setVar(player, '--player-y', y.toFixed(2));
+    });
+    window.addEventListener('pointerup', ()=> dragging = false);
 
-    const sprite = player.querySelector('.sprite');
-    player.addEventListener('pointerdown', startDrag);
-    window.addEventListener('pointermove', onMove);
-    window.addEventListener('pointerup', stopDrag);
-
-    // AOL window drag state
-    const aolSprite = aol?.querySelector('.sprite');
+    // ---- DRAG: AOL window ----
     let draggingA = false, adx = 0, ady = 0;
-    (aolSprite||aol)?.addEventListener('pointerdown', startDragAol);
-    function startDragAol(e){ draggingA = true; if(aol.setPointerCapture) try{ aol.setPointerCapture(e.pointerId);}catch(_){ } const r = aol.getBoundingClientRect(); adx = e.clientX - r.left; ady = e.clientY - r.top; clickFx(); }
+    (aol)?.addEventListener('pointerdown', (e)=>{
+      draggingA = true; try{ aol.setPointerCapture(e.pointerId);}catch(_){}
+      const r = aol.getBoundingClientRect(); adx = e.clientX - r.left; ady = e.clientY - r.top; clickFx();
+    });
     window.addEventListener('pointermove', (e)=>{
       if(!draggingA) return; const S = stageRect();
-      let x = ((e.clientX - S.left - adx) / S.width) * 100;
-      let y = ((e.clientY - S.top  - ady) / S.height) * 100;
+      let x = ((e.clientX - S.left - adx)/S.width)*100;
+      let y = ((e.clientY - S.top  - ady)/S.height)*100;
       const aw = aol.getBoundingClientRect().width / S.width * 100;
       x = Math.max(0, Math.min(100 - aw, x)); y = Math.max(0, Math.min(100 - 10, y));
       setVar(aol, '--aol-x', x.toFixed(2)); setVar(aol, '--aol-y', y.toFixed(2));
     });
-    window.addEventListener('pointerup', ()=>{ draggingA = false; });
+    window.addEventListener('pointerup', ()=> draggingA = false);
 
-    function startDrag(e){
-      if(e.target && (e.target.closest && e.target.closest('.screen'))) return; // allow video controls
-      dragging = true; if(player.setPointerCapture) try{ player.setPointerCapture(e.pointerId);}catch(_){ }
-      const r = player.getBoundingClientRect();
-      dx = e.clientX - r.left; dy = e.clientY - r.top; clickFx();
-    }
-    function onMove(e){
-      cursorMove(e);
-      if(!dragging) return;
-      const S = stageRect();
-      let x = ((e.clientX - S.left - dx) / S.width) * 100;
-      let y = ((e.clientY - S.top  - dy) / S.height) * 100;
-      const pw = player.getBoundingClientRect().width / S.width * 100; // % width
-      x = Math.max(0, Math.min(100 - pw, x));
-      y = Math.max(0, Math.min(100 - 10, y));
-      setVar(player, '--player-x', x.toFixed(2));
-      setVar(player, '--player-y', y.toFixed(2));
-    }
-    function stopDrag(){ if(!dragging) return; dragging = false; }
-    /* idle disabled */, 3000); }
-    /* idle disabled */ }
-
-    function tick(){ requestAnimationFrame(tick); }
-    requestAnimationFrame(tick);
-
-    /* ---------- Custom cursor follower w/ invert-on-click ---------- */
+    // ---- Cursor follower ----
     function cursorMove(e){ if(!cursor) return; cursor.style.left = e.clientX + 'px'; cursor.style.top = e.clientY + 'px'; }
     window.addEventListener('pointermove', cursorMove);
     window.addEventListener('pointerdown', ()=>{ cursor?.classList.add('down'); clickFx(); });
     window.addEventListener('pointerup',   ()=> cursor?.classList.remove('down'));
+    window.addEventListener('keydown', (e)=>{ if(e.key==='c') document.body.style.cursor = (document.body.style.cursor==='none'?'auto':'none'); });
 
-    // Optional: press `c` to toggle system cursor for debugging
-    window.addEventListener('keydown', (e)=>{
-      if(e.key==='c') document.body.style.cursor = (document.body.style.cursor==='none'?'auto':'none');
-    });
-
-    /* ---------- Click sound using your audio file (laser.mp3) ---------- */
+    // ---- Click sound & YouTube autoplay (muted) ----
     const clickEl = document.getElementById('clickAudio');
     const prime = () => {
-      // Prime audio element
       clickEl?.play()?.then(()=>{ clickEl.pause(); clickEl.currentTime = 0; }).catch(()=>{});
-      // Also unmute and play the YouTube video on first gesture
       const yt = document.getElementById('yt');
-      function ytCmd(func, args){ try{ yt?.contentWindow?.postMessage(JSON.stringify({event:'command', func, args: args||[]}), '*'); }catch(_){} }
-      ytCmd('mute'); ytCmd('playVideo');
+      const cmd = (func,args)=>{ try{ yt?.contentWindow?.postMessage(JSON.stringify({event:'command', func, args: args||[]}), '*'); }catch(_){} };
+      cmd('mute'); cmd('playVideo');
       window.removeEventListener('pointerdown', prime);
       window.removeEventListener('keydown', prime);
     };
-    window.addEventListener('pointerdown', prime, { once:true });
-    window.addEventListener('keydown', prime, { once:true });
-    function clickFx(){
-      if (clickEl) { try { clickEl.currentTime = 0; clickEl.play(); return; } catch(e){} }
-      try{ // tiny synth fallback
-        if(!window._actx) window._actx = new (window.AudioContext||window.webkitAudioContext)();
-        const o=_actx.createOscillator(), g=_actx.createGain(), t=_actx.currentTime;
-        o.type='square'; o.frequency.value=2200; g.gain.value=0.0001; o.connect(g); g.connect(_actx.destination);
-        g.gain.exponentialRampToValueAtTime(0.06, t+0.001); g.gain.exponentialRampToValueAtTime(0.0001, t+0.06);
-        o.start(t); o.stop(t+0.06);
-      }catch(_){}
-    }
-
-    /* ---------- Diagnostics: verify assets exist (shows a banner if any missing) ---------- */
-    (function(){
-      const missing = [];
-      function checkImg(src, cb){ const i = new Image(); i.onload=()=>cb(true); i.onerror=()=>cb(false); i.src=src; }
-      function checkAudio(src, cb){ fetch(src, {method:'HEAD'}).then(r=>cb(r.ok)).catch(()=>cb(false)); }
-      const bg = getComputedStyle(stage).backgroundImage;
-      const bgMatch = bg && bg.match(/url\(\"?([^\"\)]+)\"?\)/);
-      const bgSrc = bgMatch ? bgMatch[1] : '98webbgfin3.png';
-      const headSrc = player.querySelector('.sprite')?.getAttribute('src') || 'media head.png';
-      const aolSrc  = aol?.querySelector('.sprite')?.getAttribute('src') || 'aoll.png';
-      const cursorSrc = cursor?.getAttribute('src') || 'mouse 3.gif';
-      addCheck(checkImg, headSrc, 'Head PNG');
-      addCheck(checkImg, aolSrc, 'AOL Window');
-      addCheck(checkImg, cursorSrc, 'Cursor GIF');
-      if(audioSrc) addCheck(checkAudio, audioSrc, 'Click audio');
-      function showIfMissing(){
-        if(missing.length){
-          const d = document.getElementById('diag'); const m = document.getElementById('diagMsg');
-          m.innerHTML = '<ul><li>'+ missing.join('</li><li>') + '</li></ul>' +
-                        '<div>Make sure these files sit next to <code>index.html</code> OR update paths.</div>';
-          d.style.display='block';
-          document.body.style.cursor='auto';
-        }
-      }
-    })();
-
-    /* ---------- Guide mode: keyboard nudge for perfect fit ---------- */
-    (function(){
-      const root = document.documentElement; const hud = document.getElementById('hud'); const hudvals = document.getElementById('hudvals');
-      const btn = document.getElementById('guideBtn');
-      const get = n => parseFloat(getComputedStyle(root).getPropertyValue(n)) || 0;
-      const set = (n,v)=> root.style.setProperty(n, (Math.round(v*100)/100));
-      function render(){ if(!hudvals) return; hudvals.textContent = `left:${get('--screen-left')} top:${get('--screen-top')} w:${get('--screen-w')} h:${get('--screen-h')}`; }
-      function toggle(){ document.body.classList.toggle('guide'); render(); }
-      window.__toggleGuide = toggle; // expose for console if needed
-      btn?.addEventListener('click', toggle);
-      // On-screen nudge buttons
-      document.getElementById('nudge')?.addEventListener('click', (ev)=>{
-        const k = ev.target?.getAttribute('data-k'); if(!k) return; const e = { key:k, shiftKey:false, preventDefault:()=>{} };
-        // Simulate the same handler by dispatching a synthetic key
-        const evt = new KeyboardEvent('keydown', { key: k }); window.dispatchEvent(evt);
-      });
-      // Auto-enable if URL has #guide or ?guide=1
-      const qs = new URLSearchParams(location.search);
-      if(location.hash.includes('guide') || qs.get('guide')==='1'){ document.body.classList.add('guide'); render(); }
-      // Keyboard controls
-      window.addEventListener('keydown', (e)=>{
-        if(e.key.toLowerCase() === 'g'){ toggle(); return; }
-        if(!document.body.classList.contains('guide')) return;
-        if(e.target && (e.target.tagName==='INPUT' || e.target.tagName==='TEXTAREA' || e.target.isContentEditable)) return;
-        const step = e.shiftKey ? 1 : 0.2; let used = true;
-        let L=get('--screen-left'), T=get('--screen-top'), W=get('--screen-w'), H=get('--screen-h');
-        switch(e.key.toLowerCase()){
-          case 'w': T -= step; break;
-          case 's': T += step; break;
-          case 'a': L -= step; break;
-          case 'd': L += step; break;
-          case 'q': W -= step; break;
-          case 'e': W += step; break;
-          case 'z': H -= step; break;
-          case 'x': H += step; break;
-          case 'k': const css = `--screen-left: ${get('--screen-left')};
---screen-top: ${get('--screen-top')};
---screen-w: ${get('--screen-w')};
---screen-h: ${get('--screen-h')};`; navigator.clipboard?.writeText(css); break;
-          default: used = false;
-        }
-        if(used){ e.preventDefault(); set('--screen-left',L); set('--screen-top',T); set('--screen-w',W); set('--screen-h',H); render(); }
-      });
-      // Clicking the background will move focus off the iframe so keys work
-      document.getElementById('stage')?.addEventListener('pointerdown', ()=>{ try{ document.getElementById('stage').focus(); }catch(_){}});
-    })();
+    window.addEventListener('pointerdown', prime, {once:true});
+    window.addEventListener('keydown', prime,  {once:true});
   </script>
 </body>
 </html>
