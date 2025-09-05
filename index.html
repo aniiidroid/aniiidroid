@@ -1,1 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>aniiidroid · retro desktop</title>
+  <style>
+    /* ======= QUICK SETUP =======
+       Put these files NEXT TO index.html (same folder):
+       - 98webbgfin2.png   (background without the head)
+       - media head.png    (green head PNG, transparent screen)
+       - mouse 3.gif       (custom cursor GIF)
+       - laser.mp3         (click sound)
+       Replace the YouTube VIDEO_ID below with yours. */
+
+    :root{
+      --stage-w: 1228;         /* background width  in px  */
+      --stage-h: 768;          /* background height in px  */
+
+      /* Player position/size (percent of stage) */
+      --player-x: 21;          /* left %  */
+      --player-y: 14;          /* top  %  */
+      --player-w: 58;          /* width % */
+
+      /* Screen box inside the head (as % of player box) */
+      --screen-left: 38.5;     /* tune these four to align the iframe */
+      --screen-top: 16.5;
+      --screen-w: 23.5;
+      --screen-h: 29.5;
+
+      --accent: #0b7a21;
+    }
+
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0}
+    body{background:#061607;color:#000;font-family:Tahoma,Verdana,system-ui,sans-serif;cursor:none}
+
+    /* Center the fixed-aspect stage so overlays line up */
+    .wrap{display:grid;place-items:center;min-height:100dvh}
+    .stage{position:fixed; inset:0; width:100vw; height:100dvh; background:url('98webbgfin2.png') center/var(--bgfit, cover) no-repeat; overflow:hidden}
+
+    /* Draggable Player (green head) */
+    .player{position:absolute; left:calc(var(--player-x) * 1%);
+            top:calc(var(--player-y) * 1%); width:calc(var(--player-w) * 1%);
+            user-select:none; -webkit-user-drag:none; cursor:grab}
+    .player:active{cursor:grabbing}
+    .player .sprite{width:100%; height:auto; display:block; image-rendering:pixelated}
+
+    /* Video screen area within the head */
+    .player .screen{position:absolute; left:calc(var(--screen-left) * 1%);
+                    top:calc(var(--screen-top) * 1%);
+                    width:calc(var(--screen-w) * 1%);
+                    height:calc(var(--screen-h) * 1%);
+                    border:2px solid #0b0b0b; box-shadow: inset 0 0 0 2px #000;
+                    background:#000; overflow:hidden}
+    .player .screen iframe{position:absolute; inset:0; width:100%; height:100%; border:0}
+
+    /* Custom cursor follower (uses your GIF, inverts on click) */
+    #cursor{position:fixed; left:0; top:0; height:32px; width:auto; pointer-events:none;
+            transform:translate(-50%,-50%); image-rendering:pixelated; z-index:9999}
+    #cursor.down{filter:invert(1) hue-rotate(180deg)}
+
+    /* Diagnostics banner (shows if assets are missing) */
+    .diag{position:fixed;left:12px;bottom:56px;max-width:520px;background:#fff;border:2px solid #b00;box-shadow:0 2px 0 #0003;padding:10px;font-size:12px;display:none;z-index:10000}
+    .diag strong{color:#b00}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <main class="stage" id="stage" aria-label="retro desktop background">
+      <!-- Draggable media player head -->
+      <div class="player" id="player">
+        <img src="media head.png" alt="media head" class="sprite" draggable="false"/>
+        <div class="screen" aria-label="video screen">
+          <!-- Replace VIDEO_ID with your YouTube ID -->
+          <iframe id="yt" src="https://www.youtube.com/embed/zYciVG2uOw4?rel=0&modestbranding=1&playsinline=1"
+            title="YouTube player" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <div id="diag" class="diag"><strong>Asset check failed</strong><div id="diagMsg"></div><div style="margin-top:6px;opacity:.7">Tip: press <kbd>c</kbd> to toggle the system cursor.</div></div>
+  <img id="cursor" src="mouse 3.gif" alt="" onerror="document.body.style.cursor='auto'; this.remove(); console.warn('Cursor GIF not found');"/>
+  <audio id="clickAudio" src="laser.mp3" preload="auto"></audio>
+
+  <script>
+    /* ---------- Helpers ---------- */
+    const stage = document.getElementById('stage');
+    const player = document.getElementById('player');
+    const cursor = document.getElementById('cursor');
+
+    function stageRect(){ return stage.getBoundingClientRect(); }
+    function setVar(el, name, value){ el.style.setProperty(name, String(value)); }
+
+    /* ---------- Draggable + gentle autopilot bounce ---------- */
+    let dragging = false, dx=0, dy=0, idleTimer=null;
+    let vx = 0.04, vy = 0.03; // % per frame-ish; gentle drift
+    let autopilot = true;
+
+    const sprite = player.querySelector('.sprite');
+    sprite.addEventListener('pointerdown', startDrag);
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', stopDrag);
+
+    function startDrag(e){
+      dragging = true; autopilot = false; killIdle();
+      const r = player.getBoundingClientRect();
+      dx = e.clientX - r.left; dy = e.clientY - r.top;
+      clickFx(); // play click when grabbing
+    }
+    function onMove(e){
+      cursorMove(e);
+      if(!dragging) return;
+      const S = stageRect();
+      let x = ((e.clientX - S.left - dx) / S.width) * 100;
+      let y = ((e.clientY - S.top  - dy) / S.height) * 100;
+      const pw = player.getBoundingClientRect().width / S.width * 100; // % width
+      x = Math.max(0, Math.min(100 - pw, x));
+      y = Math.max(0, Math.min(100 - 10, y));
+      setVar(player, '--player-x', x.toFixed(2));
+      setVar(player, '--player-y', y.toFixed(2));
+    }
+    function stopDrag(){ if(!dragging) return; dragging = false; idleResume(); }
+    function idleResume(){ idleTimer = setTimeout(()=>{ autopilot = true; }, 3000); }
+    function killIdle(){ if(idleTimer){ clearTimeout(idleTimer); idleTimer=null; } }
+
+    function tick(){
+      if(autopilot){
+        const S = stageRect();
+        const pw = player.getBoundingClientRect().width / S.width * 100;
+        let x = parseFloat(getComputedStyle(player).getPropertyValue('--player-x')) || 0;
+        let y = parseFloat(getComputedStyle(player).getPropertyValue('--player-y')) || 0;
+        x += vx; y += vy;
+        if(x <= 0 || x >= 100 - pw) vx *= -1;
+        if(y <= 0 || y >= 100 - 12)  vy *= -1;
+        setVar(player, '--player-x', x);
+        setVar(player, '--player-y', y);
+      }
+      requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+
+    /* ---------- Custom cursor follower w/ invert-on-click ---------- */
+    function cursorMove(e){ if(!cursor) return; cursor.style.left = e.clientX + 'px'; cursor.style.top = e.clientY + 'px'; }
+    window.addEventListener('pointermove', cursorMove);
+    window.addEventListener('pointerdown', ()=>{ cursor?.classList.add('down'); clickFx(); });
+    window.addEventListener('pointerup',   ()=> cursor?.classList.remove('down'));
+
+    // Optional: press `c` to toggle system cursor for debugging
+    window.addEventListener('keydown', (e)=>{
+      if(e.key==='c') document.body.style.cursor = (document.body.style.cursor==='none'?'auto':'none');
+    });
+
+    /* ---------- Click sound using your audio file (laser.mp3) ---------- */
+    const clickEl = document.getElementById('clickAudio');
+    const prime = () => {
+      clickEl?.play()?.then(()=>{ clickEl.pause(); clickEl.currentTime = 0; }).catch(()=>{});
+      window.removeEventListener('pointerdown', prime);
+      window.removeEventListener('keydown', prime);
+    };
+    window.addEventListener('pointerdown', prime, { once:true });
+    window.addEventListener('keydown', prime, { once:true });
+    function clickFx(){
+      if (clickEl) { try { clickEl.currentTime = 0; clickEl.play(); return; } catch(e){} }
+      try{ // tiny synth fallback
+        if(!window._actx) window._actx = new (window.AudioContext||window.webkitAudioContext)();
+        const o=_actx.createOscillator(), g=_actx.createGain(), t=_actx.currentTime;
+        o.type='square'; o.frequency.value=2200; g.gain.value=0.0001; o.connect(g); g.connect(_actx.destination);
+        g.gain.exponentialRampToValueAtTime(0.06, t+0.001); g.gain.exponentialRampToValueAtTime(0.0001, t+0.06);
+        o.start(t); o.stop(t+0.06);
+      }catch(_){}
+    }
+
+    /* ---------- Diagnostics: verify assets exist (shows a banner if any missing) ---------- */
+    (function(){
+      const missing = [];
+      function checkImg(src, cb){ const i = new Image(); i.onload=()=>cb(true); i.onerror=()=>cb(false); i.src=src; }
+      function checkAudio(src, cb){ fetch(src, {method:'HEAD'}).then(r=>cb(r.ok)).catch(()=>cb(false)); }
+      const bg = getComputedStyle(stage).backgroundImage;
+      const bgMatch = bg && bg.match(/url\(\"?([^\"\)]+)\"?\)/);
+      const bgSrc = bgMatch ? bgMatch[1] : '98webbgfin2.png';
+      const headSrc = player.querySelector('.sprite')?.getAttribute('src') || 'media head.png';
+      const cursorSrc = cursor?.getAttribute('src') || 'mouse 3.gif';
+      const audioSrc = clickEl?.getAttribute('src') || 'laser.mp3';
+      let pending = 0; function done(){ if(--pending===0) showIfMissing(); }
+      function addCheck(fn, src, label){ pending++; fn(src, ok=>{ if(!ok) missing.push(label+': '+src); done(); }); }
+      addCheck(checkImg, bgSrc, 'Background');
+      addCheck(checkImg, headSrc, 'Head PNG');
+      addCheck(checkImg, cursorSrc, 'Cursor GIF');
+      if(audioSrc) addCheck(checkAudio, audioSrc, 'Click audio');
+      function showIfMissing(){
+        if(missing.length){
+          const d = document.getElementById('diag'); const m = document.getElementById('diagMsg');
+          m.innerHTML = '<ul><li>'+ missing.join('</li><li>') + '</li></ul>' +
+                        '<div>Make sure these files sit next to <code>index.html</code> OR update paths.</div>';
+          d.style.display='block';
+          document.body.style.cursor='auto';
+        }
+      }
+    })();
+  </script>
+</body>
+</html>
 
