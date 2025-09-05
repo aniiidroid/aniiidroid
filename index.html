@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>aniiidroid · retro desktop</title>
+<title>aniiidroid · retro desktop (v3)</title>
 <style>
   :root{
     /* Head placement on page (percent of page) */
@@ -22,6 +22,11 @@
 
     /* Show full background image (no crop) */
     --bgfit: contain;
+
+    /* Z layering */
+    --z-icons: 2;      /* desktop icons */
+    --z-popups: 6;     /* windows / art */
+    --z-cursor: 9999;  /* custom cursor */
   }
 
   *{box-sizing:border-box}
@@ -30,13 +35,14 @@
     background:#061607;
     color:#000;
     font-family:Tahoma,Verdana,system-ui,sans-serif;
-    cursor:none; /* we’ll draw our own cursor */
+    cursor:none; /* custom cursor */
+    overflow:hidden;
   }
 
   /* Full-viewport stage + background */
   .stage{
     position:fixed; inset:0; width:100vw; height:100dvh;
-    background:url('98webbgfin3.png') center/var(--bgfit) no-repeat;
+    background:url('98webbgfin.png') center/var(--bgfit) no-repeat;
     overflow:hidden;
     touch-action:none; /* keep drags smooth on touch */
   }
@@ -47,17 +53,16 @@
     left:calc(var(--player-x) * 1%); top:calc(var(--player-y) * 1%);
     width:calc(var(--player-w) * 1%);
     user-select:none; -webkit-user-drag:none;
-    cursor:grab; touch-action:none;
+    cursor:grab; touch-action:none; display:none; /* hidden until opened */
+    z-index:var(--z-popups);
   }
+  .player.show{ display:block; }
   .player:active{ cursor:grabbing; }
   .player .sprite{
     position:relative; z-index:2;
     width:100%; height:auto; display:block; image-rendering:pixelated;
-    /* KEY: let clicks pass through transparent pixels to the iframe */
-    pointer-events:none;
+    pointer-events:none; /* pass clicks to iframe where transparent */
   }
-
-  /* Video sits UNDER the PNG, visible through its transparent screen area */
   .player .screen{
     position:absolute; z-index:1;
     left:calc(var(--screen-left) * 1%);
@@ -66,9 +71,7 @@
     height:calc(var(--screen-h) * 1%);
     background:#000; overflow:hidden;
   }
-  .player .screen iframe{
-    position:absolute; inset:0; width:100%; height:100%; border:0;
-  }
+  .player .screen iframe{ position:absolute; inset:0; width:100%; height:100%; border:0; }
 
   /* AOL window (draggable box) */
   .aol{
@@ -76,43 +79,79 @@
     left:calc(var(--aol-x) * 1%); top:calc(var(--aol-y) * 1%);
     width:calc(var(--aol-w) * 1%);
     user-select:none; -webkit-user-drag:none;
-    cursor:grab; touch-action:none; z-index:3;
+    cursor:grab; touch-action:none; z-index:var(--z-popups); display:none;
   }
+  .aol.show{ display:block; }
   .aol:active{ cursor:grabbing; }
-  .aol .sprite{
-    width:100%; height:auto; display:block; image-rendering:pixelated;
-    pointer-events:none; /* drag the box, not the pixels */
+  .aol .sprite{ width:100%; height:auto; display:block; image-rendering:pixelated; pointer-events:none }
+
+  /* MP3 window (bottom) */
+  .mp3{
+    position:absolute; left:50%; transform:translateX(-50%);
+    bottom:2%; z-index:var(--z-popups); display:none; cursor:grab; user-select:none;
   }
+  .mp3.show{ display:block; }
+  .mp3 img{ width:min(80vw, 720px); height:auto; display:block; image-rendering:pixelated; pointer-events:none }
+  .sc-wrap{ display:none; position:absolute; left:50%; transform:translateX(-50%); width:min(80vw, 520px) }
+  .mp3.show + .sc-wrap{ display:block; }
+  .sc-wrap iframe{ width:100%; height:140px; border:0 }
+
+  /* Desktop icons (middle, behind windows) */
+  .icons{ position:absolute; left:50%; top:52%; transform:translate(-50%,-50%); display:grid; grid-template-columns:repeat(4, 110px); grid-auto-rows: 120px; gap:14px; z-index:var(--z-icons) }
+  .icon{ width:108px; height:110px; display:grid; place-items:center; cursor:pointer; }
+  .icon img{ max-width:100%; max-height:100%; image-rendering:pixelated; pointer-events:none }
+
+  /* Draggable helpers for anything that pops */
+  .pop{ position:absolute; z-index:var(--z-popups); touch-action:none; }
+  .dragging{ cursor:grabbing !important }
 
   /* Custom cursor */
-  #cursor{
-    position:fixed; left:0; top:0; height:32px; width:auto;
-    pointer-events:none; transform:translate(-50%,-50%);
-    image-rendering:pixelated; z-index:9999;
-  }
+  #cursor{ position:fixed; left:0; top:0; height:32px; width:auto; pointer-events:none; transform:translate(-50%,-50%); image-rendering:pixelated; z-index:var(--z-cursor); }
   #cursor.down{ filter:invert(1) hue-rotate(180deg) }
 </style>
 </head>
 <body>
 
 <main class="stage" id="stage" aria-label="retro desktop background">
-  <!-- Head -->
-  <div class="player" id="player">
+  <!-- Head / player -->
+  <div class="player pop" id="player" data-sink="hide">
     <img src="media head.png" alt="media head" class="sprite" draggable="false"/>
     <div class="screen" aria-label="video screen">
-      <!-- Click to play with sound -->
+      <!-- PLAYLIST EMBED (keeps same size/position) -->
       <iframe id="yt"
-        src="https://www.youtube.com/embed/zYciVG2uOw4?rel=0&modestbranding=1&playsinline=1"
-        title="YouTube player"
+        src="https://www.youtube.com/embed/videoseries?list=PLu5_M7wgzi0PtRH4YW5YN74MMQfqM6_g9&rel=0&modestbranding=1&playsinline=1"
+        title="YouTube playlist"
         allow="autoplay; accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
         allowfullscreen></iframe>
     </div>
   </div>
 
   <!-- AOL window -->
-  <div class="aol" id="aol">
+  <div class="aol pop" id="aol" data-sink="hide">
     <img src="aoll.png" alt="About window" class="sprite" draggable="false"/>
   </div>
+
+  <!-- MP3 player (bottom) + SoundCloud under it -->
+  <div class="mp3 pop" id="mp3Win" data-sink="hide">
+    <img src="music player.png" alt="music player" draggable="false"/>
+  </div>
+  <div class="sc-wrap" id="scWrap">
+    <iframe id="sc" allow="autoplay" scrolling="no"
+      src="https://w.soundcloud.com/player/?url=https%3A//soundcloud.com/you/likes&auto_play=false"></iframe>
+  </div>
+
+  <!-- Art images will be injected here as .pop <img> elements -->
+
+  <!-- Desktop icons (middle, behind windows) -->
+  <nav class="icons" aria-label="desktop icons">
+    <button class="icon" id="iconVid" title="Video"><img src="vid icon.png" alt="video icon"></button>
+    <button class="icon" id="iconAol" title="AOL"><img src="aol icon.png" alt="aol icon"></button>
+    <button class="icon" id="iconMp3" title="MP3"><img src="mp3 icon.png" alt="mp3 icon"></button>
+    <button class="icon" id="iconArt" title="Art"><img src="art icon.png" alt="art icon"></button>
+    <button class="icon" id="iconAbout" title="About Me"><img src="about me.png" alt="about me icon"></button>
+    <button class="icon" id="iconRecycle" title="Recycle"><img src="recycling.png" alt="recycling"></button>
+    <button class="icon" id="iconVirus" title="Virus"><img src="virus icon.png" alt="virus icon"></button>
+  </nav>
 </main>
 
 <!-- Cursor & click sound -->
@@ -125,8 +164,14 @@
   const stage  = document.getElementById('stage');
   const player = document.getElementById('player');
   const aol    = document.getElementById('aol');
+  const mp3Win = document.getElementById('mp3Win');
+  const scWrap = document.getElementById('scWrap');
   const cursor = document.getElementById('cursor');
   const clickEl= document.getElementById('clickAudio');
+  const recycleIcon = document.getElementById('iconRecycle');
+
+  const yt = document.getElementById('yt');
+  const YT_PLAYLIST = 'https://www.youtube.com/embed/videoseries?list=PLu5_M7wgzi0PtRH4YW5YN74MMQfqM6_g9&rel=0&modestbranding=1&playsinline=1';
 
   const stageRect = () => stage.getBoundingClientRect();
   const setVar = (el,n,v)=> el.style.setProperty(n, String(v));
@@ -137,77 +182,83 @@
   window.addEventListener('pointerup',   ()=>{ cursor?.classList.remove('down'); });
 
   // CUSTOM CURSOR FOLLOW
-  function cursorMove(e){
-    const p = e.touches?.[0] || e;
-    if(!cursor || !p) return;
-    cursor.style.left = p.clientX + 'px';
-    cursor.style.top  = p.clientY + 'px';
-  }
+  function cursorMove(e){ const p = e.touches?.[0] || e; if(!cursor || !p) return; cursor.style.left = p.clientX + 'px'; cursor.style.top  = p.clientY + 'px'; }
   window.addEventListener('pointermove', cursorMove, {passive:true});
   window.addEventListener('touchmove',   cursorMove, {passive:true});
-  // If cursor never moves (blocked), show system cursor
   setTimeout(()=>{ if(cursor && !cursor.style.left){ document.body.style.cursor='auto'; try{cursor.remove();}catch(_){}} }, 1200);
 
-  // DRAG HELPERS
+  // Helpers
   function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
   function pctX(px){ const S = stageRect(); return (px - S.left) / S.width * 100; }
   function pctY(py){ const S = stageRect(); return (py - S.top)  / S.height * 100; }
+  function overlaps(a,b){ const r1=a.getBoundingClientRect(), r2=b.getBoundingClientRect(); return !(r1.right<r2.left||r1.left>r2.right||r1.bottom<r2.top||r1.top>r2.bottom); }
 
-  // DRAG: HEAD (no autopilot)
-  let draggingH=false, dxH=0, dyH=0;
-  function headDown(e){
-    // Clicking inside the video should NOT drag; let the iframe get the click
-    if(e.target && e.target.closest && e.target.closest('.screen')) return;
-    draggingH = true;
-    try{ player.setPointerCapture?.(e.pointerId); }catch(_){}
-    const r = player.getBoundingClientRect();
-    const p = e.touches?.[0] || e;
-    dxH = p.clientX - r.left; dyH = p.clientY - r.top;
+  // Generic draggable for any .pop element
+  function makeDraggable(el){
+    let dragging=false, dx=0, dy=0; el.style.left = el.style.left || '10%'; el.style.top = el.style.top || '10%';
+    function down(e){ dragging=true; el.classList.add('dragging'); try{ el.setPointerCapture?.(e.pointerId);}catch(_){} const r=el.getBoundingClientRect(); const p=e.touches?.[0]||e; dx=p.clientX-r.left; dy=p.clientY-r.top; }
+    function move(e){ if(!dragging) return; const p=e.touches?.[0]||e; const S=stageRect(); let x=pctX(p.clientX-dx+S.left); let y=pctY(p.clientY-dy+S.top); const ew=el.getBoundingClientRect().width/S.width*100; x=clamp(x,0,100-ew); y=clamp(y,0,100-10); el.style.left=x+'%'; el.style.top=y+'%'; }
+    function up(){ if(!dragging) return; dragging=false; el.classList.remove('dragging'); if(overlaps(el, recycleIcon)) handleTrash(el); }
+    el.addEventListener('pointerdown', down); el.addEventListener('touchstart', down, {passive:true});
+    window.addEventListener('pointermove', move, {passive:true}); window.addEventListener('touchmove', move, {passive:true});
+    window.addEventListener('pointerup', up); window.addEventListener('touchend', up);
   }
-  function headMove(e){
-    if(!draggingH) return;
-    const p = e.touches?.[0] || e; const S = stageRect();
-    let x = pctX(p.clientX - dxH + S.left);
-    let y = pctY(p.clientY - dyH + S.top);
-    const pw = player.getBoundingClientRect().width / S.width * 100;
-    x = clamp(x, 0, 100 - pw); y = clamp(y, 0, 100 - 10);
-    setVar(player,'--player-x', x.toFixed(2));
-    setVar(player,'--player-y', y.toFixed(2));
-  }
-  function headUp(){ draggingH=false; }
-  player.addEventListener('pointerdown', headDown);
-  player.addEventListener('touchstart',  headDown, {passive:true});
-  window.addEventListener('pointermove', headMove, {passive:true});
-  window.addEventListener('touchmove',   headMove, {passive:true});
-  window.addEventListener('pointerup',   headUp);
-  window.addEventListener('touchend',    headUp);
 
-  // DRAG: AOL WINDOW
-  let draggingA=false, dxA=0, dyA=0;
-  function aolDown(e){
-    draggingA = true;
-    try{ aol.setPointerCapture?.(e.pointerId); }catch(_){}
-    const r = aol.getBoundingClientRect();
-    const p = e.touches?.[0] || e;
-    dxA = p.clientX - r.left; dyA = p.clientY - r.top;
+  // Make built-in windows draggable
+  makeDraggable(player); makeDraggable(aol); makeDraggable(mp3Win);
+
+  // Trash handler
+  function handleTrash(el){
+    if(el.dataset && el.dataset.sink === 'hide'){ el.classList.remove('show'); if(el===player){ try{ yt.src = YT_PLAYLIST; }catch(_){ } } return; }
+    // For art images or dynamically created items
+    try{ el.remove(); }catch(_){ }
   }
-  function aolMove(e){
-    if(!draggingA) return;
-    const p = e.touches?.[0] || e; const S = stageRect();
-    let x = pctX(p.clientX - dxA + S.left);
-    let y = pctY(p.clientY - dyA + S.top);
-    const aw = aol.getBoundingClientRect().width / S.width * 100;
-    x = clamp(x, 0, 100 - aw); y = clamp(y, 0, 100 - 10);
-    setVar(aol,'--aol-x', x.toFixed(2));
-    setVar(aol,'--aol-y', y.toFixed(2));
+
+  // ICON actions
+  document.getElementById('iconVid').addEventListener('click', ()=>{ if(yt.src!==YT_PLAYLIST) yt.src = YT_PLAYLIST; player.classList.add('show'); });
+  document.getElementById('iconAol').addEventListener('click', ()=> aol.classList.add('show'));
+  document.getElementById('iconMp3').addEventListener('click', ()=>{ mp3Win.classList.add('show'); positionScUnderMp3(); });
+  document.getElementById('iconArt').addEventListener('click', spawnArt);
+  document.getElementById('iconVirus').addEventListener('click', ()=>{ window.location.href = 'virus.html'; });
+  document.getElementById('iconRecycle').addEventListener('click', closeAll);
+  // About icon intentionally no action yet
+
+  function closeAll(){
+    player.classList.remove('show'); aol.classList.remove('show'); mp3Win.classList.remove('show');
+    document.querySelectorAll('.art-pop').forEach(n=>n.remove());
+    scWrap.style.display = 'none';
   }
-  function aolUp(){ draggingA=false; }
-  aol.addEventListener('pointerdown', aolDown);
-  aol.addEventListener('touchstart',  aolDown, {passive:true});
-  window.addEventListener('pointermove', aolMove, {passive:true});
-  window.addEventListener('touchmove',   aolMove, {passive:true});
-  window.addEventListener('pointerup',   aolUp);
-  window.addEventListener('touchend',    aolUp);
+
+  // SoundCloud under-the-png positioning
+  function positionScUnderMp3(){
+    // show below the png
+    scWrap.style.display = 'block';
+    const r = mp3Win.getBoundingClientRect();
+    scWrap.style.position = 'absolute';
+    scWrap.style.left = (r.left + r.width/2) + 'px';
+    scWrap.style.top  = (r.bottom + 8) + 'px';
+    scWrap.style.transform = 'translateX(-50%)';
+    scWrap.style.zIndex = getComputedStyle(mp3Win).zIndex;
+  }
+  window.addEventListener('resize', ()=>{ if(mp3Win.classList.contains('show')) positionScUnderMp3(); });
+
+  // Spawn draggable art images (once per click; duplicates avoided)
+  const ART_FILES = ['blue2.png','trump.png','me2.png','23.png','3 yel.png'];
+  let artSpawned = false;
+  function spawnArt(){
+    if(artSpawned) return; artSpawned = true;
+    const S = stageRect();
+    ART_FILES.forEach((name, i)=>{
+      const img = document.createElement('img'); img.src = name; img.alt = name; img.className='pop art-pop';
+      img.style.left = (40 + i*6) + '%'; img.style.top = (20 + i*5) + '%'; img.style.maxWidth = '34vw'; img.style.maxHeight = '36vh'; img.style.imageRendering='pixelated';
+      stage.appendChild(img); makeDraggable(img);
+    });
+    // allow re-open later by resetting flag when all are gone
+    const observer = new MutationObserver(()=>{
+      if(!document.querySelector('.art-pop')){ artSpawned=false; observer.disconnect(); }
+    });
+    observer.observe(stage, {childList:true});
+  }
 </script>
 </body>
 </html>
