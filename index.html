@@ -171,7 +171,7 @@
       // Also unmute and play the YouTube video on first gesture
       const yt = document.getElementById('yt');
       function ytCmd(func, args){ try{ yt?.contentWindow?.postMessage(JSON.stringify({event:'command', func, args: args||[]}), '*'); }catch(_){} }
-      ytCmd('unMute'); ytCmd('playVideo');
+      ytCmd('mute'); ytCmd('playVideo');
       window.removeEventListener('pointerdown', prime);
       window.removeEventListener('keydown', prime);
     };
