@@ -179,7 +179,7 @@
         );
       } catch (_) {}
     }
-    function ensureAutoplay(){ ytCmd('mute'); ytCmd('playVideo'); ytCmd('seekTo',[0,true]); }
+    function ensureAutoplay(){ ytCmd('mute'); ytCmd('playVideo'); }
 
     if (document.readyState !== 'loading') setTimeout(ensureAutoplay, 50);
     else document.addEventListener('DOMContentLoaded', ()=> setTimeout(ensureAutoplay, 50));
@@ -187,11 +187,8 @@
     document.getElementById('yt')?.addEventListener('load', ()=> setTimeout(ensureAutoplay, 50));
     [300, 1000, 2000, 4000, 8000].forEach(t => setTimeout(ensureAutoplay, t));
     document.addEventListener('visibilitychange', () => { if (!document.hidden) ensureAutoplay(); });
-    window.addEventListener('pointerdown', ensureAutoplay);
-    window.addEventListener('keydown', ensureAutoplay);
-    window.addEventListener('touchstart', ensureAutoplay, {passive:true});
-  </script>
+    const screenEl = document.querySelector('.screen');
+    screenEl?.addEventListener('pointerdown', ensureAutoplay, { once: true }); });
+    </script>
 </body>
 </html>
- 
- 
