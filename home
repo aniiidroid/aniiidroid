@@ -80,7 +80,10 @@
 
     /* Respect reduced motion: stop autopilot */
     @media (prefers-reduced-motion: reduce){ .autopilot{animation:none!important} }
-  </style>
+    /* Small diagnostics banner */
+  .diag{position:fixed;left:12px;bottom:56px;max-width:520px;background:#fff;border:2px solid #b00;box-shadow:0 2px 0 #0003;padding:10px;font-size:12px;display:none;z-index:10000}
+  .diag strong{color:#b00}
+</style>
 </head>
 <body>
   <div class="wrap">
@@ -101,7 +104,8 @@
   </div>
 
   <!-- Custom cursor follower -->
-  <img id="cursor" src="mouse-3.gif" alt="" />
+  <div id="diag" class="diag"><strong>Asset check failed</strong><div id="diagMsg"></div><div style="margin-top:6px;opacity:.7">Tip: press <kbd>c</kbd> to toggle the system cursor.</div></div>
+  <img id="cursor" src="mouse-3.gif" alt="" onerror="document.body.style.cursor='auto'; this.remove(); console.warn('Cursor GIF not found');"/>
 
   <!-- Click sound asset -->
   <audio id="clickAudio" src="laser.mp3" preload="auto"></audio>
@@ -205,6 +209,34 @@
         o.start(t); o.stop(t+0.06);
       }catch(_){}
     }
+
+    /* ---------- Diagnostics: verify assets exist (shows a banner if any missing) ---------- */
+    (function(){
+      const missing = [];
+      function checkImg(src, cb){ const i = new Image(); i.onload=()=>cb(true); i.onerror=()=>cb(false); i.src=src; }
+      function checkAudio(src, cb){ fetch(src, {method:'HEAD'}).then(r=>cb(r.ok)).catch(()=>cb(false)); }
+      const bg = getComputedStyle(stage).backgroundImage;
+      const bgMatch = bg && bg.match(/url\(\"?([^\"\)]+)\"?\)/);
+      const bgSrc = bgMatch ? bgMatch[1] : '98webbgfin2.png';
+      const headSrc = player.querySelector('.sprite')?.getAttribute('src') || 'media-head.png';
+      const cursorSrc = document.getElementById('cursor')?.getAttribute('src') || 'mouse-3.gif';
+      const audioSrc = document.getElementById('clickAudio')?.getAttribute('src') || 'laser.mp3';
+      let pending = 0; function done(){ if(--pending===0) showIfMissing(); }
+      function addCheck(fn, src, label){ pending++; fn(src, ok=>{ if(!ok) missing.push(label+': '+src); done(); }); }
+      addCheck(checkImg, bgSrc, 'Background');
+      addCheck(checkImg, headSrc, 'Head PNG');
+      addCheck(checkImg, cursorSrc, 'Cursor GIF');
+      if(audioSrc) addCheck(checkAudio, audioSrc, 'Click audio');
+      function showIfMissing(){
+        if(missing.length){
+          const d = document.getElementById('diag'); const m = document.getElementById('diagMsg');
+          m.innerHTML = '<ul><li>'+ missing.join('</li><li>') + '</li></ul>' +
+                        '<div>Make sure these files sit next to <code>index.html</code> OR update paths.</div>';
+          d.style.display='block';
+          document.body.style.cursor='auto';
+        }
+      }
+    })();
 
     /* ---------- Ensure iframe keeps ratio on iOS */
     // Nothing special required; we use absolute inset:0; but keep playsinline for mobile.
