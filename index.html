@@ -71,7 +71,7 @@
     <div class="player" id="player">
       <img src="media head.png" alt="media head" class="sprite" draggable="false"/>
       <div class="screen" aria-label="video screen">
-        <iframe id="yt" src="https://www.youtube.com/embed/zYciVG2uOw4?rel=0&modestbranding=1&playsinline=1&autoplay=1&mute=1&loop=1&playlist=zYciVG2uOw4&enablejsapi=1"
+        <iframe id="yt" src="https://www.youtube.com/embed/zYciVG2uOw4?rel=0&modestbranding=1&playsinline=1"
           title="YouTube player" allow="autoplay; accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
       </div>
     </div>
@@ -186,22 +186,11 @@
     function clickFx(){ if (!clickEl) return; try { clickEl.currentTime = 0; clickEl.play(); } catch(_) {} }
 
     // ---- YouTube autoplay (muted) – fire ASAP + retry (idempotent) ----
-    function ytCmd(func, args){
-      const yt = document.getElementById('yt');
-      try { yt && yt.contentWindow && yt.contentWindow.postMessage(JSON.stringify({event:'command', func, args: args||[]}), '*'); } catch(_) {}
+    function ytCmd(func,args){} // no autoplay control needed), '*'); } catch(_) {}
     }
-    function ensureAutoplay(){ ytCmd('mute'); ytCmd('playVideo'); }
+    function ensureAutoplay(){} // disabled; user will click video to play with sound
 
-    if (document.readyState !== 'loading') setTimeout(ensureAutoplay, 50);
-    else document.addEventListener('DOMContentLoaded', ()=> setTimeout(ensureAutoplay, 50));
-    window.addEventListener('load', ()=> setTimeout(ensureAutoplay, 50));
-    document.getElementById('yt')?.addEventListener('load', ()=> setTimeout(ensureAutoplay, 50));
-    ;[300, 1000, 2000, 4000, 8000].forEach(t => setTimeout(ensureAutoplay, t));
-    document.addEventListener('visibilitychange', () => { if (!document.hidden) ensureAutoplay(); });
-    // Let any click/tap nudge playback if a browser blocked it; harmless if already playing
-    window.addEventListener('pointerdown', ensureAutoplay);
-    window.addEventListener('keydown', ensureAutoplay);
-    window.addEventListener('touchstart', ensureAutoplay, {passive:true});
+    /* autoplay disabled on purpose — user clicks the video itself to play with sound */
   })();
   </script>
 </body>
