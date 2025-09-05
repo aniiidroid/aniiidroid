@@ -71,7 +71,7 @@
     <div class="player" id="player">
       <img src="media head.png" alt="media head" class="sprite" draggable="false"/>
       <div class="screen" aria-label="video screen">
-        <iframe id="yt" src="https://www.youtube.com/embed/zYciVG2uOw4?rel=0&modestbranding=1&playsinline=1&autoplay=1&mute=1&enablejsapi=1"
+        <iframe id="yt" src="https://www.youtube.com/embed/zYciVG2uOw4?rel=0&modestbranding=1&playsinline=1&autoplay=1&mute=1&loop=1&playlist=zYciVG2uOw4&enablejsapi=1"
           title="YouTube player" allow="autoplay; accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
       </div>
     </div>
@@ -179,12 +179,13 @@
         );
       } catch (_) {}
     }
-    function ensureAutoplay(){ ytCmd('mute'); ytCmd('playVideo'); }
+    function ensureAutoplay(){ ytCmd('mute'); ytCmd('playVideo'); ytCmd('seekTo',[0,true]); }
 
     if (document.readyState !== 'loading') setTimeout(ensureAutoplay, 50);
     else document.addEventListener('DOMContentLoaded', ()=> setTimeout(ensureAutoplay, 50));
     window.addEventListener('load', ()=> setTimeout(ensureAutoplay, 50));
-    [300, 1000, 2000, 4000].forEach(t => setTimeout(ensureAutoplay, t));
+    document.getElementById('yt')?.addEventListener('load', ()=> setTimeout(ensureAutoplay, 50));
+    [300, 1000, 2000, 4000, 8000].forEach(t => setTimeout(ensureAutoplay, t));
     document.addEventListener('visibilitychange', () => { if (!document.hidden) ensureAutoplay(); });
     window.addEventListener('pointerdown', ensureAutoplay);
     window.addEventListener('keydown', ensureAutoplay);
@@ -192,3 +193,5 @@
   </script>
 </body>
 </html>
+ 
+ 
