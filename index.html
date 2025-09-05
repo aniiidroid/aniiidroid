@@ -62,6 +62,8 @@
     .aol{position:absolute; left:calc(var(--aol-x) * 1%); top:calc(var(--aol-y) * 1%); width:calc(var(--aol-w) * 1%); user-select:none; -webkit-user-drag:none; cursor:grab; z-index:3}
     .aol:active{cursor:grabbing}
     .aol .sprite{width:100%; height:auto; display:block; image-rendering:pixelated}
+    /* Prevent browser gestures from hijacking drags */
+    .player, .aol{ touch-action: none; }
 
     /* Custom cursor follower (uses your GIF, inverts on click) */
     #cursor{position:fixed; left:0; top:0; height:32px; width:auto; pointer-events:none;
@@ -140,15 +142,15 @@
     let autopilot = false;
 
     const sprite = player.querySelector('.sprite');
-    sprite.addEventListener('pointerdown', startDrag);
+    player.addEventListener('pointerdown', startDrag);
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', stopDrag);
 
     // AOL window drag state
     const aolSprite = aol?.querySelector('.sprite');
     let draggingA = false, adx = 0, ady = 0;
-    aolSprite?.addEventListener('pointerdown', startDragAol);
-    function startDragAol(e){ draggingA = true; const r = aol.getBoundingClientRect(); adx = e.clientX - r.left; ady = e.clientY - r.top; clickFx(); }
+    (aolSprite||aol)?.addEventListener('pointerdown', startDragAol);
+    function startDragAol(e){ draggingA = true; if(aol.setPointerCapture) try{ aol.setPointerCapture(e.pointerId);}catch(_){ } const r = aol.getBoundingClientRect(); adx = e.clientX - r.left; ady = e.clientY - r.top; clickFx(); }
     window.addEventListener('pointermove', (e)=>{
       if(!draggingA) return; const S = stageRect();
       let x = ((e.clientX - S.left - adx) / S.width) * 100;
@@ -160,12 +162,10 @@
     window.addEventListener('pointerup', ()=>{ draggingA = false; });
 
     function startDrag(e){
-      // If clicking inside the video screen, do NOT start dragging
-      if(e.target && (e.target.closest && e.target.closest('.screen'))) return;
-      dragging = true;
+      if(e.target && (e.target.closest && e.target.closest('.screen'))) return; // allow video controls
+      dragging = true; if(player.setPointerCapture) try{ player.setPointerCapture(e.pointerId);}catch(_){ }
       const r = player.getBoundingClientRect();
-      dx = e.clientX - r.left; dy = e.clientY - r.top;
-      clickFx();
+      dx = e.clientX - r.left; dy = e.clientY - r.top; clickFx();
     }
     function onMove(e){
       cursorMove(e);
@@ -229,7 +229,7 @@
       function checkAudio(src, cb){ fetch(src, {method:'HEAD'}).then(r=>cb(r.ok)).catch(()=>cb(false)); }
       const bg = getComputedStyle(stage).backgroundImage;
       const bgMatch = bg && bg.match(/url\(\"?([^\"\)]+)\"?\)/);
-      const bgSrc = bgMatch ? bgMatch[1] : '98webbgfin2.png';
+      const bgSrc = bgMatch ? bgMatch[1] : '98webbgfin3.png';
       const headSrc = player.querySelector('.sprite')?.getAttribute('src') || 'media head.png';
       const aolSrc  = aol?.querySelector('.sprite')?.getAttribute('src') || 'aoll.png';
       const cursorSrc = cursor?.getAttribute('src') || 'mouse 3.gif';
