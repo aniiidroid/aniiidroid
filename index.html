@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>aniiidroid · retro desktop</title>
+<title>aniiidroid · retro desktop (v4)</title>
 <style>
   :root{
     /* Head placement on page (percent of page) */
@@ -93,8 +93,8 @@
   .mp3.show{ display:block; }
   .mp3 img{ width:min(56vw, 504px); height:auto; display:block; image-rendering:pixelated; pointer-events:none }
 
-  /* SoundCloud container that pops under the mp3 window */
-  .sc-wrap{ display:none; position:absolute; }
+  /* SoundCloud container that pops UNDER the mp3 window and follows it */
+  .sc-wrap{ display:none; position:absolute; pointer-events:auto; }
   .sc-wrap iframe{ width:100%; border:0 }
 
   /* Desktop icons (middle, behind windows) */
@@ -104,7 +104,8 @@
   .icon img{ max-width:100%; max-height:100%; image-rendering:pixelated; pointer-events:none; filter:none }
 
   /* Recycle icon anchored bottom-right */
-  #iconRecycle{ position:fixed; right:48px; bottom:56px; z-index:var(--z-icons) }
+  /* >>> EDIT HERE to move the recycle icon: tweak right/bottom values <<< */
+  #iconRecycle{ position:fixed; right:100px; bottom:110px; z-index:var(--z-icons) }
 
   /* Draggable helpers for anything that pops */
   .pop{ position:absolute; z-index:var(--z-popups); touch-action:none; }
@@ -119,7 +120,7 @@
 
 <main class="stage" id="stage" aria-label="retro desktop background">
   <!-- Head / player -->
-  <div class="player pop" id="player" data-sink="hide" data-miny="-25">
+  <div class="player pop" id="player" data-sink="hide" data-miny="-25" data-minx="-12">
     <img src="media head.png" alt="media head" class="sprite" draggable="false"/>
     <div class="screen" aria-label="video screen">
       <!-- PLAYLIST EMBED (keeps same size/position and resizes with the head) -->
@@ -132,12 +133,12 @@
   </div>
 
   <!-- AOL window -->
-  <div class="aol pop" id="aol" data-sink="hide">
+  <div class="aol pop" id="aol" data-sink="hide" data-miny="-15" data-minx="-10">
     <img src="aoll3.png" alt="About window" class="sprite" draggable="false"/>
   </div>
 
   <!-- MP3 player (bottom) + SoundCloud under it -->
-  <div class="mp3 pop" id="mp3Win" data-sink="hide" data-miny="-25">
+  <div class="mp3 pop" id="mp3Win" data-sink="hide" data-miny="-25" data-minx="-12">
     <img src="music player.png" alt="music player" draggable="false"/>
   </div>
   <div class="sc-wrap" id="scWrap">
@@ -196,12 +197,13 @@
   function pctY(py){ const S = stageRect(); return (py - S.top)  / S.height * 100; }
   function overlaps(a,b){ const r1=a.getBoundingClientRect(), r2=b.getBoundingClientRect(); return !(r1.right<r2.left||r1.left>r2.right||r1.bottom<r2.top||r1.top>r2.bottom); }
 
-  // Generic draggable for any .pop element
-  function makeDraggable(el){
+  // Generic draggable for any .pop element (supports slight overflow past LEFT/TOP)
+  function makeDraggable(el, opts={}){
     let dragging=false, dx=0, dy=0; el.style.left = el.style.left || '10%'; el.style.top = el.style.top || '10%';
-    const minYpct = parseFloat(el.dataset.miny ?? '0');
+    const minYpct = parseFloat(el.dataset.miny ?? opts.miny ?? '0');
+    const minXpct = parseFloat(el.dataset.minx ?? opts.minx ?? '0');
     function down(e){ dragging=true; el.classList.add('dragging'); try{ el.setPointerCapture?.(e.pointerId);}catch(_){} const r=el.getBoundingClientRect(); const p=e.touches?.[0]||e; dx=p.clientX-r.left; dy=p.clientY-r.top; }
-    function move(e){ if(!dragging) return; const p=e.touches?.[0]||e; const S=stageRect(); let x=pctX(p.clientX-dx+S.left); let y=pctY(p.clientY-dy+S.top); const ew=el.getBoundingClientRect().width/S.width*100; x=clamp(x,0,100-ew); y=clamp(y,minYpct,100-10); el.style.left=x+'%'; el.style.top=y+'%'; }
+    function move(e){ if(!dragging) return; const p=e.touches?.[0]||e; const S=stageRect(); let x=pctX(p.clientX-dx+S.left); let y=pctY(p.clientY-dy+S.top); const ew=el.getBoundingClientRect().width/S.width*100; x=clamp(x,minXpct,100-ew); y=clamp(y,minYpct,100-10); el.style.left=x+'%'; el.style.top=y+'%'; if(el===mp3Win) positionScUnderMp3(); }
     function up(){ if(!dragging) return; dragging=false; el.classList.remove('dragging'); if(overlaps(el, recycleIcon)) handleTrash(el); }
     el.addEventListener('pointerdown', down); el.addEventListener('touchstart', down, {passive:true});
     window.addEventListener('pointermove', move, {passive:true}); window.addEventListener('touchmove', move, {passive:true});
@@ -213,7 +215,8 @@
 
   // Trash handler
   function handleTrash(el){
-    if(el.dataset && el.dataset.sink === 'hide'){ el.classList.remove('show'); if(el===player){ try{ yt.src = YT_PLAYLIST; }catch(_){ } } return; }
+    if(el.dataset && el.dataset.sink === 'hide'){ el.classList.remove('show'); if(el===player){ try{ yt.src = YT_PLAYLIST; }catch(_){ } } if(el===mp3Win){ scWrap.style.display='none'; }
+      return; }
     try{ el.remove(); }catch(_){ }
   }
 
@@ -234,26 +237,30 @@
     scWrap.style.display = 'none';
   }
 
-  // SoundCloud under-the-png positioning (and width sync)
+  // SoundCloud under-the-png positioning (and width sync) — NEVER behind
   function positionScUnderMp3(){
     scWrap.style.display = 'block';
     const r = mp3Win.getBoundingClientRect();
     scWrap.style.left = (r.left + r.width/2) + 'px';
     scWrap.style.top  = (r.bottom + 8) + 'px';
     scWrap.style.transform = 'translateX(-50%)';
-    scWrap.style.zIndex = getComputedStyle(mp3Win).zIndex;
+    const z = parseInt(getComputedStyle(mp3Win).zIndex || 10, 10);
+    scWrap.style.zIndex = (z + 1).toString();
     scWrap.style.width = r.width + 'px';
   }
   window.addEventListener('resize', ()=>{ if(mp3Win.classList.contains('show')) positionScUnderMp3(); });
 
-  // Spawn draggable art images
+  // Spawn draggable art images (spread out; avoid bottom-right / recycle zone)
   const ART_FILES = ['blue2.png','trump.png','me2.png','23.png','3 yel.png'];
   let artSpawned = false;
   function spawnArt(){
     if(artSpawned) return; artSpawned = true;
+    const positions = generateSpreadPositions(ART_FILES.length);
     ART_FILES.forEach((name, i)=>{
       const img = document.createElement('img'); img.src = name; img.alt = name; img.className='pop art-pop';
-      img.style.left = (40 + i*6) + '%'; img.style.top = (20 + i*5) + '%'; img.style.maxWidth = '34vw'; img.style.maxHeight = '36vh'; img.style.imageRendering='pixelated';
+      img.style.left = positions[i].x + '%'; img.style.top = positions[i].y + '%';
+      img.style.maxWidth = '32vw'; img.style.maxHeight = '34vh'; img.style.imageRendering='pixelated';
+      img.dataset.miny = '-15'; img.dataset.minx = '-10';
       stage.appendChild(img); makeDraggable(img);
     });
     // Reset flag when all are gone so you can re-open
@@ -261,6 +268,23 @@
       if(!document.querySelector('.art-pop')){ artSpawned=false; observer.disconnect(); }
     });
     observer.observe(stage, {childList:true});
+  }
+
+  function generateSpreadPositions(n){
+    // Avoid bottom-right 30%x30% area to reduce accidental deletes
+    const forbidden = {x:70, y:70};
+    const pts = []; const minDist = 14; // percent distance
+    let tries = 0;
+    while(pts.length < n && tries < 500){
+      tries++;
+      const x = 10 + Math.random()*60; // keep away from far edges
+      const y = 12 + Math.random()*44; // upper/mid area
+      if(x>forbidden.x && y>forbidden.y) continue; // avoid bottom-right
+      if(pts.every(p=>Math.hypot(p.x-x, p.y-y) > minDist)) pts.push({x:Math.round(x*100)/100, y:Math.round(y*100)/100});
+    }
+    // Fallback grid if random placement failed
+    while(pts.length<n){ pts.push({x: 12 + pts.length*16, y: 16 + (pts.length%2)*18}); }
+    return pts;
   }
 </script>
 </body>
