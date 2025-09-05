@@ -3,13 +3,13 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>aniiidroid · retro desktop (v3)</title>
+<title>aniiidroid · retro desktop</title>
 <style>
   :root{
     /* Head placement on page (percent of page) */
     --player-x: 21;   /* left %  */
     --player-y: 14;   /* top  %  */
-    --player-w: 40.6; /* width % (30% smaller than 58) */
+    --player-w: 40.6; /* width % (30% smaller than original 58) */
 
     /* Video window inside the head (percent of head box) */
     --screen-left: 37.0;
@@ -20,7 +20,7 @@
     /* AOL window placement */
     --aol-x: 73;  --aol-y: 54;  --aol-w: 22;
 
-    /* Show full background image (no crop) */
+    /* Background fit */
     --bgfit: contain;
 
     /* Z layering */
@@ -47,7 +47,7 @@
     touch-action:none; /* keep drags smooth on touch */
   }
 
-  /* Head (draggable box) */
+  /* Head (draggable) */
   .player{
     position:absolute;
     left:calc(var(--player-x) * 1%); top:calc(var(--player-y) * 1%);
@@ -73,7 +73,7 @@
   }
   .player .screen iframe{ position:absolute; inset:0; width:100%; height:100%; border:0; }
 
-  /* AOL window (draggable box) */
+  /* AOL window (draggable) */
   .aol{
     position:absolute;
     left:calc(var(--aol-x) * 1%); top:calc(var(--aol-y) * 1%);
@@ -92,6 +92,8 @@
   }
   .mp3.show{ display:block; }
   .mp3 img{ width:min(56vw, 504px); height:auto; display:block; image-rendering:pixelated; pointer-events:none }
+
+  /* SoundCloud container that pops under the mp3 window */
   .sc-wrap{ display:none; position:absolute; }
   .sc-wrap iframe{ width:100%; border:0 }
 
@@ -120,7 +122,7 @@
   <div class="player pop" id="player" data-sink="hide" data-miny="-25">
     <img src="media head.png" alt="media head" class="sprite" draggable="false"/>
     <div class="screen" aria-label="video screen">
-      <!-- PLAYLIST EMBED (keeps same size/position) -->
+      <!-- PLAYLIST EMBED (keeps same size/position and resizes with the head) -->
       <iframe id="yt"
         src="https://www.youtube.com/embed/videoseries?list=PLu5_M7wgzi0PtRH4YW5YN74MMQfqM6_g9&rel=0&modestbranding=1&playsinline=1"
         title="YouTube playlist"
@@ -139,11 +141,9 @@
     <img src="music player.png" alt="music player" draggable="false"/>
   </div>
   <div class="sc-wrap" id="scWrap">
-  <iframe width="100%" height="450" scrolling="no" frameborder="no" allow="autoplay" src="https://w.soundcloud.com/player/?url=https%3A//api.soundcloud.com/playlists/2076641592&color=%23ff5500&auto_play=false&hide_related=false&show_comments=true&show_user=true&show_reposts=false&show_teaser=true"></iframe>
-  <div style="font-size: 10px; color: #cccccc;line-break: anywhere;word-break: normal;overflow: hidden;white-space: nowrap;text-overflow: ellipsis; font-family: Interstate,Lucida Grande,Lucida Sans Unicode,Lucida Sans,Garuda,Verdana,Tahoma,sans-serif;font-weight: 100;"><a href="https://soundcloud.com/aniiidroid" title="ANIIIDROID" target="_blank" style="color: #cccccc; text-decoration: none;">ANIIIDROID</a> · <a href="https://soundcloud.com/aniiidroid/sets/droid" title="Droid" target="_blank" style="color: #cccccc; text-decoration: none;">Droid</a></div>
-</div>
-
-  <!-- Art images will be injected here as .pop <img> elements -->
+    <iframe width="100%" height="450" scrolling="no" frameborder="no" allow="autoplay" src="https://w.soundcloud.com/player/?url=https%3A//api.soundcloud.com/playlists/2076641592&color=%23ff5500&auto_play=false&hide_related=false&show_comments=true&show_user=true&show_reposts=false&show_teaser=true"></iframe>
+    <div style="font-size: 10px; color: #cccccc;line-break: anywhere;word-break: normal;overflow: hidden;white-space: nowrap;text-overflow: ellipsis; font-family: Interstate,Lucida Grande,Lucida Sans Unicode,Lucida Sans,Garuda,Verdana,Tahoma,sans-serif;font-weight: 100;"><a href="https://soundcloud.com/aniiidroid" title="ANIIIDROID" target="_blank" style="color: #cccccc; text-decoration: none;">ANIIIDROID</a> · <a href="https://soundcloud.com/aniiidroid/sets/droid" title="Droid" target="_blank" style="color: #cccccc; text-decoration: none;">Droid</a></div>
+  </div>
 
   <!-- Desktop icons (middle, behind windows) -->
   <nav class="icons" aria-label="desktop icons">
@@ -152,8 +152,8 @@
     <button class="icon" id="iconMp3" title="MP3"><img src="mp3 icon.png" alt="mp3 icon"></button>
     <button class="icon" id="iconArt" title="Art"><img src="art icon.png" alt="art icon"></button>
     <button class="icon" id="iconAbout" title="About Me"><img src="about me.png" alt="about me icon"></button>
-    <button class="icon" id="iconRecycle" title="Recycle"><img src="recycling.png" alt="recycling"></button>
     <button class="icon" id="iconVirus" title="Virus"><img src="virus icon.png" alt="virus icon"></button>
+    <button class="icon" id="iconRecycle" title="Recycle"><img src="recycling.png" alt="recycling"></button>
   </nav>
 </main>
 
@@ -206,12 +206,6 @@
     el.addEventListener('pointerdown', down); el.addEventListener('touchstart', down, {passive:true});
     window.addEventListener('pointermove', move, {passive:true}); window.addEventListener('touchmove', move, {passive:true});
     window.addEventListener('pointerup', up); window.addEventListener('touchend', up);
-  }catch(_){} const r=el.getBoundingClientRect(); const p=e.touches?.[0]||e; dx=p.clientX-r.left; dy=p.clientY-r.top; }
-    function move(e){ if(!dragging) return; const p=e.touches?.[0]||e; const S=stageRect(); let x=pctX(p.clientX-dx+S.left); let y=pctY(p.clientY-dy+S.top); const ew=el.getBoundingClientRect().width/S.width*100; x=clamp(x,0,100-ew); y=clamp(y,0,100-10); el.style.left=x+'%'; el.style.top=y+'%'; }
-    function up(){ if(!dragging) return; dragging=false; el.classList.remove('dragging'); if(overlaps(el, recycleIcon)) handleTrash(el); }
-    el.addEventListener('pointerdown', down); el.addEventListener('touchstart', down, {passive:true});
-    window.addEventListener('pointermove', move, {passive:true}); window.addEventListener('touchmove', move, {passive:true});
-    window.addEventListener('pointerup', up); window.addEventListener('touchend', up);
   }
 
   // Make built-in windows draggable
@@ -220,7 +214,6 @@
   // Trash handler
   function handleTrash(el){
     if(el.dataset && el.dataset.sink === 'hide'){ el.classList.remove('show'); if(el===player){ try{ yt.src = YT_PLAYLIST; }catch(_){ } } return; }
-    // For art images or dynamically created items
     try{ el.remove(); }catch(_){ }
   }
 
@@ -233,7 +226,7 @@
   bind('iconArt','click', spawnArt);
   bind('iconVirus','click', ()=>{ window.location.href = 'virus.html'; });
   bind('iconRecycle','click', closeAll);
-  // About icon intentionally no action yet
+  bind('iconAbout','click', ()=>{ window.location.href = 'about.html'; });
 
   function closeAll(){
     player.classList.remove('show'); aol.classList.remove('show'); mp3Win.classList.remove('show');
@@ -241,11 +234,10 @@
     scWrap.style.display = 'none';
   }
 
-  // SoundCloud under-the-png positioning
+  // SoundCloud under-the-png positioning (and width sync)
   function positionScUnderMp3(){
     scWrap.style.display = 'block';
     const r = mp3Win.getBoundingClientRect();
-    scWrap.style.position = 'absolute';
     scWrap.style.left = (r.left + r.width/2) + 'px';
     scWrap.style.top  = (r.bottom + 8) + 'px';
     scWrap.style.transform = 'translateX(-50%)';
@@ -254,18 +246,17 @@
   }
   window.addEventListener('resize', ()=>{ if(mp3Win.classList.contains('show')) positionScUnderMp3(); });
 
-  // Spawn draggable art images (once per click; duplicates avoided)
+  // Spawn draggable art images
   const ART_FILES = ['blue2.png','trump.png','me2.png','23.png','3 yel.png'];
   let artSpawned = false;
   function spawnArt(){
     if(artSpawned) return; artSpawned = true;
-    const S = stageRect();
     ART_FILES.forEach((name, i)=>{
       const img = document.createElement('img'); img.src = name; img.alt = name; img.className='pop art-pop';
       img.style.left = (40 + i*6) + '%'; img.style.top = (20 + i*5) + '%'; img.style.maxWidth = '34vw'; img.style.maxHeight = '36vh'; img.style.imageRendering='pixelated';
       stage.appendChild(img); makeDraggable(img);
     });
-    // allow re-open later by resetting flag when all are gone
+    // Reset flag when all are gone so you can re-open
     const observer = new MutationObserver(()=>{
       if(!document.querySelector('.art-pop')){ artSpawned=false; observer.disconnect(); }
     });
