@@ -9,7 +9,7 @@
     /* Head placement on page (percent of page) */
     --player-x: 21;   /* left %  */
     --player-y: 14;   /* top  %  */
-    --player-w: 58;   /* width % */
+    --player-w: 40.6; /* width % (30% smaller than 58) */
 
     /* Video window inside the head (percent of head box) */
     --screen-left: 37.0;
@@ -91,15 +91,18 @@
     bottom:2%; z-index:var(--z-popups); display:none; cursor:grab; user-select:none;
   }
   .mp3.show{ display:block; }
-  .mp3 img{ width:min(80vw, 720px); height:auto; display:block; image-rendering:pixelated; pointer-events:none }
-  .sc-wrap{ display:none; position:absolute; left:50%; transform:translateX(-50%); width:min(80vw, 520px) }
-  .mp3.show + .sc-wrap{ display:block; }
-  .sc-wrap iframe{ width:100%; height:140px; border:0 }
+  .mp3 img{ width:min(56vw, 504px); height:auto; display:block; image-rendering:pixelated; pointer-events:none }
+  .sc-wrap{ display:none; position:absolute; }
+  .sc-wrap iframe{ width:100%; border:0 }
 
   /* Desktop icons (middle, behind windows) */
   .icons{ position:absolute; left:50%; top:52%; transform:translate(-50%,-50%); display:grid; grid-template-columns:repeat(4, 110px); grid-auto-rows: 120px; gap:14px; z-index:var(--z-icons) }
-  .icon{ width:108px; height:110px; display:grid; place-items:center; cursor:pointer; }
-  .icon img{ max-width:100%; max-height:100%; image-rendering:pixelated; pointer-events:none }
+  .icon{ width:108px; height:110px; display:grid; place-items:center; cursor:pointer; background:transparent; border:0; padding:0; appearance:none; -webkit-appearance:none; }
+  .icon:focus{ outline:2px solid rgba(0,255,122,.6); outline-offset:2px }
+  .icon img{ max-width:100%; max-height:100%; image-rendering:pixelated; pointer-events:none; filter:none }
+
+  /* Recycle icon anchored bottom-right */
+  #iconRecycle{ position:fixed; right:28px; bottom:32px; z-index:var(--z-icons) }
 
   /* Draggable helpers for anything that pops */
   .pop{ position:absolute; z-index:var(--z-popups); touch-action:none; }
@@ -114,7 +117,7 @@
 
 <main class="stage" id="stage" aria-label="retro desktop background">
   <!-- Head / player -->
-  <div class="player pop" id="player" data-sink="hide">
+  <div class="player pop" id="player" data-sink="hide" data-miny="-15">
     <img src="media head.png" alt="media head" class="sprite" draggable="false"/>
     <div class="screen" aria-label="video screen">
       <!-- PLAYLIST EMBED (keeps same size/position) -->
@@ -128,17 +131,17 @@
 
   <!-- AOL window -->
   <div class="aol pop" id="aol" data-sink="hide">
-    <img src="aoll.png" alt="About window" class="sprite" draggable="false"/>
+    <img src="aoll3.png" alt="About window" class="sprite" draggable="false"/>
   </div>
 
   <!-- MP3 player (bottom) + SoundCloud under it -->
-  <div class="mp3 pop" id="mp3Win" data-sink="hide">
+  <div class="mp3 pop" id="mp3Win" data-sink="hide" data-miny="-15">
     <img src="music player.png" alt="music player" draggable="false"/>
   </div>
   <div class="sc-wrap" id="scWrap">
-    <iframe id="sc" allow="autoplay" scrolling="no"
-      src="https://w.soundcloud.com/player/?url=https%3A//soundcloud.com/you/likes&auto_play=false"></iframe>
-  </div>
+  <iframe width="100%" height="450" scrolling="no" frameborder="no" allow="autoplay" src="https://w.soundcloud.com/player/?url=https%3A//api.soundcloud.com/playlists/2076641592&color=%23ff5500&auto_play=false&hide_related=false&show_comments=true&show_user=true&show_reposts=false&show_teaser=true"></iframe>
+  <div style="font-size: 10px; color: #cccccc;line-break: anywhere;word-break: normal;overflow: hidden;white-space: nowrap;text-overflow: ellipsis; font-family: Interstate,Lucida Grande,Lucida Sans Unicode,Lucida Sans,Garuda,Verdana,Tahoma,sans-serif;font-weight: 100;"><a href="https://soundcloud.com/aniiidroid" title="ANIIIDROID" target="_blank" style="color: #cccccc; text-decoration: none;">ANIIIDROID</a> · <a href="https://soundcloud.com/aniiidroid/sets/droid" title="Droid" target="_blank" style="color: #cccccc; text-decoration: none;">Droid</a></div>
+</div>
 
   <!-- Art images will be injected here as .pop <img> elements -->
 
@@ -196,7 +199,14 @@
   // Generic draggable for any .pop element
   function makeDraggable(el){
     let dragging=false, dx=0, dy=0; el.style.left = el.style.left || '10%'; el.style.top = el.style.top || '10%';
+    const minYpct = parseFloat(el.dataset.miny ?? '0');
     function down(e){ dragging=true; el.classList.add('dragging'); try{ el.setPointerCapture?.(e.pointerId);}catch(_){} const r=el.getBoundingClientRect(); const p=e.touches?.[0]||e; dx=p.clientX-r.left; dy=p.clientY-r.top; }
+    function move(e){ if(!dragging) return; const p=e.touches?.[0]||e; const S=stageRect(); let x=pctX(p.clientX-dx+S.left); let y=pctY(p.clientY-dy+S.top); const ew=el.getBoundingClientRect().width/S.width*100; x=clamp(x,0,100-ew); y=clamp(y,minYpct,100-10); el.style.left=x+'%'; el.style.top=y+'%'; }
+    function up(){ if(!dragging) return; dragging=false; el.classList.remove('dragging'); if(overlaps(el, recycleIcon)) handleTrash(el); }
+    el.addEventListener('pointerdown', down); el.addEventListener('touchstart', down, {passive:true});
+    window.addEventListener('pointermove', move, {passive:true}); window.addEventListener('touchmove', move, {passive:true});
+    window.addEventListener('pointerup', up); window.addEventListener('touchend', up);
+  }catch(_){} const r=el.getBoundingClientRect(); const p=e.touches?.[0]||e; dx=p.clientX-r.left; dy=p.clientY-r.top; }
     function move(e){ if(!dragging) return; const p=e.touches?.[0]||e; const S=stageRect(); let x=pctX(p.clientX-dx+S.left); let y=pctY(p.clientY-dy+S.top); const ew=el.getBoundingClientRect().width/S.width*100; x=clamp(x,0,100-ew); y=clamp(y,0,100-10); el.style.left=x+'%'; el.style.top=y+'%'; }
     function up(){ if(!dragging) return; dragging=false; el.classList.remove('dragging'); if(overlaps(el, recycleIcon)) handleTrash(el); }
     el.addEventListener('pointerdown', down); el.addEventListener('touchstart', down, {passive:true});
@@ -231,7 +241,6 @@
 
   // SoundCloud under-the-png positioning
   function positionScUnderMp3(){
-    // show below the png
     scWrap.style.display = 'block';
     const r = mp3Win.getBoundingClientRect();
     scWrap.style.position = 'absolute';
@@ -239,6 +248,7 @@
     scWrap.style.top  = (r.bottom + 8) + 'px';
     scWrap.style.transform = 'translateX(-50%)';
     scWrap.style.zIndex = getComputedStyle(mp3Win).zIndex;
+    scWrap.style.width = r.width + 'px';
   }
   window.addEventListener('resize', ()=>{ if(mp3Win.classList.contains('show')) positionScUnderMp3(); });
 
