@@ -71,11 +71,14 @@
   body.guide #hud{display:block}
   body.guide .player .screen{outline:2px dashed rgba(255,0,0,.85)}
   body.guide .player .screen iframe{pointer-events:none}
+  /* Tiny on-screen toggle for Guide mode */
+  #guideBtn{position:fixed;left:10px;bottom:10px;z-index:10002;font:12px Tahoma, sans-serif;padding:4px 8px;background:#c0c7c8;border:2px solid; border-color:#fff #000 #000 #fff; cursor:pointer;}
+  body.guide #guideBtn{background:#a8c0ff}
 </style>
 </head>
 <body>
   <div class="wrap">
-    <main class="stage" id="stage" aria-label="retro desktop background">
+    <main class="stage" id="stage" aria-label="retro desktop background" tabindex="-1">
       <!-- Draggable media player head -->
       <div class="player" id="player">
         <img src="media head.png" alt="media head" class="sprite" draggable="false"/>
@@ -89,6 +92,7 @@
   </div>
 
   <div id="hud">Guide ON — adjust screen cutout: <kbd>WASD</kbd> move, <kbd>Q/E</kbd> width, <kbd>Z/X</kbd> height, <kbd>K</kbd> copy CSS, <kbd>G</kbd> to exit.<br><span id="hudvals"></span></div>
+  <button id="guideBtn" type="button" aria-label="Toggle guide">Guide</button>
   <div id="diag" class="diag"><strong>Asset check failed</strong><div id="diagMsg"></div><div style="margin-top:6px;opacity:.7">Tip: press <kbd>c</kbd> to toggle the system cursor.</div></div>
   <img id="cursor" src="mouse 3.gif" alt="" onerror="document.body.style.cursor='auto'; this.remove(); console.warn('Cursor GIF not found');"/>
   <audio id="clickAudio" src="laser.mp3" preload="auto"></audio>
@@ -219,20 +223,24 @@
     /* ---------- Guide mode: keyboard nudge for perfect fit ---------- */
     (function(){
       const root = document.documentElement; const hud = document.getElementById('hud'); const hudvals = document.getElementById('hudvals');
+      const btn = document.getElementById('guideBtn');
       const get = n => parseFloat(getComputedStyle(root).getPropertyValue(n)) || 0;
       const set = (n,v)=> root.style.setProperty(n, (Math.round(v*100)/100));
       function render(){ if(!hudvals) return; hudvals.textContent = `left:${get('--screen-left')} top:${get('--screen-top')} w:${get('--screen-w')} h:${get('--screen-h')}`; }
       function toggle(){ document.body.classList.toggle('guide'); render(); }
-      function copyCSS(){ const css = `--screen-left: ${get('--screen-left')};
---screen-top: ${get('--screen-top')};
---screen-w: ${get('--screen-w')};
---screen-h: ${get('--screen-h')};`; navigator.clipboard?.writeText(css); }
+      window.__toggleGuide = toggle; // expose for console if needed
+      btn?.addEventListener('click', toggle);
+      // Auto-enable if URL has #guide or ?guide=1
+      const qs = new URLSearchParams(location.search);
+      if(location.hash.includes('guide') || qs.get('guide')==='1'){ document.body.classList.add('guide'); render(); }
+      // Keyboard controls
       window.addEventListener('keydown', (e)=>{
+        if(e.key.toLowerCase() === 'g'){ toggle(); return; }
+        if(!document.body.classList.contains('guide')) return;
         if(e.target && (e.target.tagName==='INPUT' || e.target.tagName==='TEXTAREA' || e.target.isContentEditable)) return;
         const step = e.shiftKey ? 1 : 0.2; let used = true;
         let L=get('--screen-left'), T=get('--screen-top'), W=get('--screen-w'), H=get('--screen-h');
         switch(e.key.toLowerCase()){
-          case 'g': toggle(); break;
           case 'w': T -= step; break;
           case 's': T += step; break;
           case 'a': L -= step; break;
@@ -241,11 +249,16 @@
           case 'e': W += step; break;
           case 'z': H -= step; break;
           case 'x': H += step; break;
-          case 'k': copyCSS(); break;
+          case 'k': const css = `--screen-left: ${get('--screen-left')};
+--screen-top: ${get('--screen-top')};
+--screen-w: ${get('--screen-w')};
+--screen-h: ${get('--screen-h')};`; navigator.clipboard?.writeText(css); break;
           default: used = false;
         }
         if(used){ e.preventDefault(); set('--screen-left',L); set('--screen-top',T); set('--screen-w',W); set('--screen-h',H); render(); }
       });
+      // Clicking the background will move focus off the iframe so keys work
+      document.getElementById('stage')?.addEventListener('pointerdown', ()=>{ try{ document.getElementById('stage').focus(); }catch(_){}});
     })();
   </script>
 </body>
