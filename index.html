@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>aniiidroid · retro desktop (v6)</title>
+<title>aniiidroid · retro desktop (v7)</title>
 <style>
   :root{
     /* Head placement on page (percent of page) */
@@ -58,45 +58,43 @@
   }
   .player.show{ display:block; }
   .player:active{ cursor:grabbing; }
-  .player .sprite{
-    position:relative; z-index:2;
-    width:100%; height:auto; display:block; image-rendering:pixelated;
-    pointer-events:none; /* pass clicks to iframe where transparent */
-  }
-  .player .screen{ position:absolute; z-index:1; left:calc(var(--screen-left) * 1%); top:calc(var(--screen-top) * 1%); width:calc(var(--screen-w) * 1%); height:calc(var(--screen-h) * 1%); background:#000; overflow:hidden; }
-  .player .screen iframe{ position:absolute; inset:0; width:100%; height:100%; border:0; }
+  .player .sprite{ position:relative; z-index:2; width:100%; height:auto; display:block; image-rendering:pixelated; pointer-events:none }
+  .player .screen{ position:absolute; z-index:1; left:calc(var(--screen-left) * 1%); top:calc(var(--screen-top) * 1%); width:calc(var(--screen-w) * 1%); height:calc(var(--screen-h) * 1%); background:#000; overflow:hidden }
+  .player .screen iframe{ position:absolute; inset:0; width:100%; height:100%; border:0 }
 
   /* AOL window (draggable) */
-  .aol{ position:absolute; left:calc(var(--aol-x) * 1%); top:calc(var(--aol-y) * 1%); width:calc(var(--aol-w) * 1%); user-select:none; -webkit-user-drag:none; cursor:grab; touch-action:none; z-index:var(--z-popups); display:none; }
-  .aol.show{ display:block; }
-  .aol:active{ cursor:grabbing; }
+  .aol{ position:absolute; left:calc(var(--aol-x) * 1%); top:calc(var(--aol-y) * 1%); width:calc(var(--aol-w) * 1%); user-select:none; -webkit-user-drag:none; cursor:grab; touch-action:none; z-index:var(--z-popups); display:none }
+  .aol.show{ display:block }
+  .aol:active{ cursor:grabbing }
   .aol .sprite{ width:100%; height:auto; display:block; image-rendering:pixelated; pointer-events:none }
 
   /* MP3 window (bottom) */
-  .mp3{ position:absolute; left:50%; transform:translateX(-50%); bottom:2%; z-index:var(--z-popups); display:none; cursor:grab; user-select:none; }
-  .mp3.show{ display:block; }
+  .mp3{ position:absolute; left:50%; transform:translateX(-50%); bottom:2%; z-index:var(--z-popups); display:none; cursor:grab; user-select:none }
+  .mp3.show{ display:block }
   .mp3 img{ width:min(56vw, 504px); height:auto; display:block; image-rendering:pixelated; pointer-events:none }
 
   /* SoundCloud container that pops UNDER the mp3 window and follows it */
-  .sc-wrap{ display:none; position:fixed; pointer-events:auto; }
+  .sc-wrap{ display:none; position:fixed; pointer-events:auto }
   .sc-wrap iframe{ width:100%; border:0 }
 
   /* Desktop icons (middle, behind windows) */
   .icons{ position:absolute; left:50%; top:52%; transform:translate(-50%,-50%); display:grid; grid-template-columns:repeat(4, 110px); grid-auto-rows: 120px; gap:14px; z-index:var(--z-icons) }
-  .icon{ width:108px; height:110px; display:grid; place-items:center; cursor:pointer; background:transparent; border:0; padding:0; appearance:none; -webkit-appearance:none; }
+  .icon{ width:108px; height:110px; display:grid; place-items:center; cursor:pointer; background:transparent; border:0; padding:0; appearance:none; -webkit-appearance:none }
   .icon:focus{ outline:2px solid rgba(0,255,122,.6); outline-offset:2px }
   .icon img{ max-width:100%; max-height:100%; image-rendering:pixelated; pointer-events:none; filter:none }
 
-  /* Recycle icon: positioning now handled by JS so it tracks the icon grid on resize. */
-  #iconRecycle{ position:fixed; z-index:var(--z-icons); transition:transform .08s ease; }
-  #iconRecycle.hot{ transform:scale(1.08); filter:drop-shadow(0 0 8px rgba(0,255,122,.7)); }
+  /* Recycle icon (JS positions it; plus a pulse so you can find it) */
+  #iconRecycle{ position:fixed; z-index:var(--z-icons) }
+  #iconRecycle.hot{ filter:drop-shadow(0 0 8px rgba(0,255,122,.7)); transform:scale(1.06) }
+  @keyframes ping { 0%{ transform:scale(1) } 50%{ transform:scale(1.14) } 100%{ transform:scale(1) } }
+  #iconRecycle.ping{ animation: ping .9s ease-in-out 2 }
 
   /* Draggable helpers for anything that pops */
-  .pop{ position:absolute; z-index:var(--z-popups); touch-action:none; }
+  .pop{ position:absolute; z-index:var(--z-popups); touch-action:none }
   .dragging{ cursor:grabbing !important }
 
   /* Custom cursor */
-  #cursor{ position:fixed; left:0; top:0; height:32px; width:auto; pointer-events:none; transform:translate(-50%,-50%); image-rendering:pixelated; z-index:var(--z-cursor); }
+  #cursor{ position:fixed; left:0; top:0; height:32px; width:auto; pointer-events:none; transform:translate(-50%,-50%); image-rendering:pixelated; z-index:var(--z-cursor) }
   #cursor.down{ filter:invert(1) hue-rotate(180deg) }
 </style>
 </head>
@@ -107,12 +105,7 @@
   <div class="player pop" id="player" data-sink="hide" data-miny="-25" data-minx="-12">
     <img src="media head.png" alt="media head" class="sprite" draggable="false"/>
     <div class="screen" aria-label="video screen">
-      <!-- PLAYLIST EMBED (keeps same size/position and resizes with the head) -->
-      <iframe id="yt"
-        src="https://www.youtube.com/embed/videoseries?list=PLu5_M7wgzi0PtRH4YW5YN74MMQfqM6_g9&rel=0&modestbranding=1&playsinline=1"
-        title="YouTube playlist"
-        allow="autoplay; accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-        allowfullscreen></iframe>
+      <iframe id="yt" src="https://www.youtube.com/embed/videoseries?list=PLu5_M7wgzi0PtRH4YW5YN74MMQfqM6_g9&rel=0&modestbranding=1&playsinline=1" title="YouTube playlist" allow="autoplay; accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
     </div>
   </div>
 
@@ -126,10 +119,7 @@
     <img src="music player.png" alt="music player" draggable="false"/>
   </div>
   <div class="sc-wrap" id="scWrap">
-    <!-- Using your playlist URL so it's playable on-page -->
-    <iframe
-      height="450" scrolling="no" frameborder="no" allow="autoplay"
-      src="https://w.soundcloud.com/player/?url=https%3A//soundcloud.com/aniiidroid/sets/droid&color=%23ff5500&auto_play=false&hide_related=false&show_comments=true&show_user=true&show_reposts=false&show_teaser=true"></iframe>
+    <iframe height="300" scrolling="no" frameborder="no" allow="autoplay" src="https://w.soundcloud.com/player/?url=https%3A//soundcloud.com/aniiidroid/sets/droid&color=%23ff5500&auto_play=false&hide_related=false&show_comments=true&show_user=true&show_reposts=false&show_teaser=true"></iframe>
     <div style="font-size: 10px; color: #cccccc;line-break: anywhere;word-break: normal;overflow: hidden;white-space: nowrap;text-overflow: ellipsis; font-family: Interstate,Lucida Grande,Lucida Sans Unicode,Lucida Sans,Garuda,Verdana,Tahoma,sans-serif;font-weight: 100;"><a href="https://soundcloud.com/aniiidroid" title="ANIIIDROID" target="_blank" style="color: #cccccc; text-decoration: none;">ANIIIDROID</a> · <a href="https://soundcloud.com/aniiidroid/sets/droid" title="Droid" target="_blank" style="color: #cccccc; text-decoration: none;">Droid</a></div>
   </div>
 
@@ -146,8 +136,7 @@
 </main>
 
 <!-- Cursor & click sound -->
-<img id="cursor" src="mouse 3.gif" alt=""
-     onerror="document.body.style.cursor='auto'; this.remove();"/>
+<img id="cursor" src="mouse 3.gif" alt="" onerror="document.body.style.cursor='auto'; this.remove();"/>
 <audio id="clickAudio" src="laser.mp3" preload="metadata"></audio>
 
 <script>
@@ -186,22 +175,40 @@
   function overlaps(a,b){ const r1=a.getBoundingClientRect(), r2=b.getBoundingClientRect(); return !(r1.right<r2.left||r1.left>r2.right||r1.bottom<r2.top||r1.top>r2.bottom); }
 
   // >>> EDIT HERE: distance from the icon grid to the recycle can (px)
-  const RECYCLE_OFFSET = { dx: 10, dy: 60 };
+  const RECYCLE_OFFSET = { dx: 240, dy: 160 };
+  const RECYCLE_MARGIN = 16; // min px margin from viewport edge
 
   function positionRecycle(){
     const r = iconsGrid.getBoundingClientRect();
     let x = r.right + RECYCLE_OFFSET.dx;
     let y = r.bottom + RECYCLE_OFFSET.dy;
-    // keep on screen with 16px margin
     const el = recycleIcon; el.style.position='fixed';
     const w = el.getBoundingClientRect().width || 64; const h = el.getBoundingClientRect().height || 64;
-    x = clamp(x, 16, window.innerWidth - w - 16);
-    y = clamp(y, 16, window.innerHeight - h - 16);
-    el.style.left = x + 'px';
-    el.style.top  = y + 'px';
+    x = clamp(x, RECYCLE_MARGIN, window.innerWidth  - w - RECYCLE_MARGIN);
+    y = clamp(y, RECYCLE_MARGIN, window.innerHeight - h - RECYCLE_MARGIN);
+    el.style.left = x + 'px'; el.style.top = y + 'px';
   }
-  window.addEventListener('resize', positionRecycle);
-  window.addEventListener('load', positionRecycle);
+
+  function bringBin(){
+    // failsafe: snap bin to bottom-right and ping so you can find it
+    const el = recycleIcon; const w = el.getBoundingClientRect().width || 64; const h = el.getBoundingClientRect().height || 64;
+    el.style.left = (window.innerWidth - w - 28) + 'px';
+    el.style.top  = (window.innerHeight - h - 36) + 'px';
+    el.classList.add('ping'); setTimeout(()=>el.classList.remove('ping'), 1400);
+  }
+
+  // Reposition bin on load/resize; if it's off-screen, bring it back
+  function safePositionBin(){
+    positionRecycle();
+    const r = recycleIcon.getBoundingClientRect();
+    const out = (r.right < 0 || r.bottom < 0 || r.left > window.innerWidth || r.top > window.innerHeight);
+    if(out) bringBin();
+  }
+  window.addEventListener('resize', safePositionBin);
+  window.addEventListener('load',   safePositionBin);
+
+  // Keyboard finder: press "B" to snap bin to bottom-right
+  window.addEventListener('keydown', (e)=>{ if((e.key||'').toLowerCase()==='b'){ bringBin(); } });
 
   // Generic draggable for any .pop element (supports slight overflow past LEFT/TOP)
   function makeDraggable(el, opts={}){
@@ -210,14 +217,9 @@
     const minXpct = parseFloat(el.dataset.minx ?? opts.minx ?? '0');
     function down(e){ dragging=true; el.classList.add('dragging'); try{ el.setPointerCapture?.(e.pointerId);}catch(_){} const r=el.getBoundingClientRect(); const p=e.touches?.[0]||e; dx=p.clientX-r.left; dy=p.clientY-r.top; }
     function move(e){ if(!dragging) return; const p=e.touches?.[0]||e; const S=stageRect(); let x=pctX(p.clientX-dx+S.left); let y=pctY(p.clientY-dy+S.top); const ew=el.getBoundingClientRect().width/S.width*100; x=clamp(x,minXpct,100-ew); y=clamp(y,minYpct,100-10); el.style.left=x+'%'; el.style.top=y+'%'; if(el===mp3Win) positionScUnderMp3();
-      // highlight recycle only, do NOT delete until release
       if(overlaps(el, recycleIcon)) recycleIcon.classList.add('hot'); else recycleIcon.classList.remove('hot');
     }
-    function up(){ if(!dragging) return; dragging=false; el.classList.remove('dragging');
-      const shouldTrash = overlaps(el, recycleIcon);
-      recycleIcon.classList.remove('hot');
-      if(shouldTrash) handleTrash(el);
-    }
+    function up(){ if(!dragging) return; dragging=false; el.classList.remove('dragging'); const shouldTrash = overlaps(el, recycleIcon); recycleIcon.classList.remove('hot'); if(shouldTrash) handleTrash(el); }
     el.addEventListener('pointerdown', down); el.addEventListener('touchstart', down, {passive:true});
     window.addEventListener('pointermove', move, {passive:true}); window.addEventListener('touchmove', move, {passive:true});
     window.addEventListener('pointerup', up); window.addEventListener('touchend', up);
@@ -255,15 +257,19 @@
   }
 
   // SoundCloud under-the-png positioning (and width sync) — NEVER behind
+  const SC = { gap: 8, height: 300, margin: 12 };
   function positionScUnderMp3(){
     scWrap.style.display = 'block';
     const r = mp3Win.getBoundingClientRect();
+    const iframe = scWrap.querySelector('iframe');
+    iframe.style.height = SC.height + 'px';
+    let top = r.bottom + SC.gap;
+    if (top + SC.height + SC.margin > window.innerHeight) top = r.top - SC.height - SC.gap;
     scWrap.style.left = (r.left + r.width/2) + 'px';
-    scWrap.style.top  = (r.bottom + 8) + 'px';
+    scWrap.style.top  = top + 'px';
     scWrap.style.transform = 'translateX(-50%)';
-    const z = parseInt(getComputedStyle(mp3Win).zIndex || 10, 10);
-    scWrap.style.zIndex = (z + 1).toString();
     scWrap.style.width = r.width + 'px';
+    scWrap.style.zIndex = (parseInt(getComputedStyle(mp3Win).zIndex || 10, 10) + 1).toString();
   }
   window.addEventListener('resize', ()=>{ if(mp3Win.classList.contains('show')) positionScUnderMp3(); });
 
@@ -280,32 +286,26 @@
       img.dataset.miny = '-15'; img.dataset.minx = '-10';
       stage.appendChild(img); makeDraggable(img);
     });
-    // Reset flag when all are gone so you can re-open
-    const observer = new MutationObserver(()=>{
-      if(!document.querySelector('.art-pop')){ artSpawned=false; observer.disconnect(); }
-    });
+    const observer = new MutationObserver(()=>{ if(!document.querySelector('.art-pop')){ artSpawned=false; observer.disconnect(); } });
     observer.observe(stage, {childList:true});
   }
 
   function generateSpreadPositions(n){
-    // Avoid bottom-right 30%x30% area to reduce accidental deletes
     const forbidden = {x:70, y:70};
-    const pts = []; const minDist = 14; // percent distance
-    let tries = 0;
+    const pts = []; const minDist = 14; let tries = 0;
     while(pts.length < n && tries < 500){
       tries++;
-      const x = 10 + Math.random()*60; // keep away from far edges
-      const y = 12 + Math.random()*44; // upper/mid area
-      if(x>forbidden.x && y>forbidden.y) continue; // avoid bottom-right
+      const x = 10 + Math.random()*60;
+      const y = 12 + Math.random()*44;
+      if(x>forbidden.x && y>forbidden.y) continue;
       if(pts.every(p=>Math.hypot(p.x-x, p.y-y) > minDist)) pts.push({x:Math.round(x*100)/100, y:Math.round(y*100)/100});
     }
-    // Fallback grid if random placement failed
     while(pts.length<n){ pts.push({x: 12 + pts.length*16, y: 16 + (pts.length%2)*18}); }
     return pts;
   }
 
-  // Initial layout calls
-  positionRecycle();
+  // Kick things off
+  safePositionBin();
 </script>
 </body>
 </html>
