@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>aniiidroid · retro desktop (v4)</title>
+<title>aniiidroid · retro desktop (v6)</title>
 <style>
   :root{
     /* Head placement on page (percent of page) */
@@ -63,38 +63,22 @@
     width:100%; height:auto; display:block; image-rendering:pixelated;
     pointer-events:none; /* pass clicks to iframe where transparent */
   }
-  .player .screen{
-    position:absolute; z-index:1;
-    left:calc(var(--screen-left) * 1%);
-    top: calc(var(--screen-top) * 1%);
-    width:calc(var(--screen-w) * 1%);
-    height:calc(var(--screen-h) * 1%);
-    background:#000; overflow:hidden;
-  }
+  .player .screen{ position:absolute; z-index:1; left:calc(var(--screen-left) * 1%); top:calc(var(--screen-top) * 1%); width:calc(var(--screen-w) * 1%); height:calc(var(--screen-h) * 1%); background:#000; overflow:hidden; }
   .player .screen iframe{ position:absolute; inset:0; width:100%; height:100%; border:0; }
 
   /* AOL window (draggable) */
-  .aol{
-    position:absolute;
-    left:calc(var(--aol-x) * 1%); top:calc(var(--aol-y) * 1%);
-    width:calc(var(--aol-w) * 1%);
-    user-select:none; -webkit-user-drag:none;
-    cursor:grab; touch-action:none; z-index:var(--z-popups); display:none;
-  }
+  .aol{ position:absolute; left:calc(var(--aol-x) * 1%); top:calc(var(--aol-y) * 1%); width:calc(var(--aol-w) * 1%); user-select:none; -webkit-user-drag:none; cursor:grab; touch-action:none; z-index:var(--z-popups); display:none; }
   .aol.show{ display:block; }
   .aol:active{ cursor:grabbing; }
   .aol .sprite{ width:100%; height:auto; display:block; image-rendering:pixelated; pointer-events:none }
 
   /* MP3 window (bottom) */
-  .mp3{
-    position:absolute; left:50%; transform:translateX(-50%);
-    bottom:2%; z-index:var(--z-popups); display:none; cursor:grab; user-select:none;
-  }
+  .mp3{ position:absolute; left:50%; transform:translateX(-50%); bottom:2%; z-index:var(--z-popups); display:none; cursor:grab; user-select:none; }
   .mp3.show{ display:block; }
   .mp3 img{ width:min(56vw, 504px); height:auto; display:block; image-rendering:pixelated; pointer-events:none }
 
   /* SoundCloud container that pops UNDER the mp3 window and follows it */
-  .sc-wrap{ display:none; position:absolute; pointer-events:auto; }
+  .sc-wrap{ display:none; position:fixed; pointer-events:auto; }
   .sc-wrap iframe{ width:100%; border:0 }
 
   /* Desktop icons (middle, behind windows) */
@@ -103,9 +87,9 @@
   .icon:focus{ outline:2px solid rgba(0,255,122,.6); outline-offset:2px }
   .icon img{ max-width:100%; max-height:100%; image-rendering:pixelated; pointer-events:none; filter:none }
 
-  /* Recycle icon anchored bottom-right */
-  /* >>> EDIT HERE to move the recycle icon: tweak right/bottom values <<< */
-  #iconRecycle{ position:fixed; right:-320px; bottom:-200px; z-index:var(--z-icons) }
+  /* Recycle icon: positioning now handled by JS so it tracks the icon grid on resize. */
+  #iconRecycle{ position:fixed; z-index:var(--z-icons); transition:transform .08s ease; }
+  #iconRecycle.hot{ transform:scale(1.08); filter:drop-shadow(0 0 8px rgba(0,255,122,.7)); }
 
   /* Draggable helpers for anything that pops */
   .pop{ position:absolute; z-index:var(--z-popups); touch-action:none; }
@@ -142,7 +126,10 @@
     <img src="music player.png" alt="music player" draggable="false"/>
   </div>
   <div class="sc-wrap" id="scWrap">
-    <iframe width="100%" height="450" scrolling="no" frameborder="no" allow="autoplay" src="https://w.soundcloud.com/player/?url=https%3A//api.soundcloud.com/playlists/2076641592&color=%23ff5500&auto_play=false&hide_related=false&show_comments=true&show_user=true&show_reposts=false&show_teaser=true"></iframe>
+    <!-- Using your playlist URL so it's playable on-page -->
+    <iframe
+      height="450" scrolling="no" frameborder="no" allow="autoplay"
+      src="https://w.soundcloud.com/player/?url=https%3A//soundcloud.com/aniiidroid/sets/droid&color=%23ff5500&auto_play=false&hide_related=false&show_comments=true&show_user=true&show_reposts=false&show_teaser=true"></iframe>
     <div style="font-size: 10px; color: #cccccc;line-break: anywhere;word-break: normal;overflow: hidden;white-space: nowrap;text-overflow: ellipsis; font-family: Interstate,Lucida Grande,Lucida Sans Unicode,Lucida Sans,Garuda,Verdana,Tahoma,sans-serif;font-weight: 100;"><a href="https://soundcloud.com/aniiidroid" title="ANIIIDROID" target="_blank" style="color: #cccccc; text-decoration: none;">ANIIIDROID</a> · <a href="https://soundcloud.com/aniiidroid/sets/droid" title="Droid" target="_blank" style="color: #cccccc; text-decoration: none;">Droid</a></div>
   </div>
 
@@ -173,6 +160,7 @@
   const cursor = document.getElementById('cursor');
   const clickEl= document.getElementById('clickAudio');
   const recycleIcon = document.getElementById('iconRecycle');
+  const iconsGrid = document.querySelector('.icons');
 
   const yt = document.getElementById('yt');
   const YT_PLAYLIST = 'https://www.youtube.com/embed/videoseries?list=PLu5_M7wgzi0PtRH4YW5YN74MMQfqM6_g9&rel=0&modestbranding=1&playsinline=1';
@@ -197,14 +185,39 @@
   function pctY(py){ const S = stageRect(); return (py - S.top)  / S.height * 100; }
   function overlaps(a,b){ const r1=a.getBoundingClientRect(), r2=b.getBoundingClientRect(); return !(r1.right<r2.left||r1.left>r2.right||r1.bottom<r2.top||r1.top>r2.bottom); }
 
+  // >>> EDIT HERE: distance from the icon grid to the recycle can (px)
+  const RECYCLE_OFFSET = { dx: 240, dy: 160 };
+
+  function positionRecycle(){
+    const r = iconsGrid.getBoundingClientRect();
+    let x = r.right + RECYCLE_OFFSET.dx;
+    let y = r.bottom + RECYCLE_OFFSET.dy;
+    // keep on screen with 16px margin
+    const el = recycleIcon; el.style.position='fixed';
+    const w = el.getBoundingClientRect().width || 64; const h = el.getBoundingClientRect().height || 64;
+    x = clamp(x, 16, window.innerWidth - w - 16);
+    y = clamp(y, 16, window.innerHeight - h - 16);
+    el.style.left = x + 'px';
+    el.style.top  = y + 'px';
+  }
+  window.addEventListener('resize', positionRecycle);
+  window.addEventListener('load', positionRecycle);
+
   // Generic draggable for any .pop element (supports slight overflow past LEFT/TOP)
   function makeDraggable(el, opts={}){
     let dragging=false, dx=0, dy=0; el.style.left = el.style.left || '10%'; el.style.top = el.style.top || '10%';
     const minYpct = parseFloat(el.dataset.miny ?? opts.miny ?? '0');
     const minXpct = parseFloat(el.dataset.minx ?? opts.minx ?? '0');
     function down(e){ dragging=true; el.classList.add('dragging'); try{ el.setPointerCapture?.(e.pointerId);}catch(_){} const r=el.getBoundingClientRect(); const p=e.touches?.[0]||e; dx=p.clientX-r.left; dy=p.clientY-r.top; }
-    function move(e){ if(!dragging) return; const p=e.touches?.[0]||e; const S=stageRect(); let x=pctX(p.clientX-dx+S.left); let y=pctY(p.clientY-dy+S.top); const ew=el.getBoundingClientRect().width/S.width*100; x=clamp(x,minXpct,100-ew); y=clamp(y,minYpct,100-10); el.style.left=x+'%'; el.style.top=y+'%'; if(el===mp3Win) positionScUnderMp3(); }
-    function up(){ if(!dragging) return; dragging=false; el.classList.remove('dragging'); if(overlaps(el, recycleIcon)) handleTrash(el); }
+    function move(e){ if(!dragging) return; const p=e.touches?.[0]||e; const S=stageRect(); let x=pctX(p.clientX-dx+S.left); let y=pctY(p.clientY-dy+S.top); const ew=el.getBoundingClientRect().width/S.width*100; x=clamp(x,minXpct,100-ew); y=clamp(y,minYpct,100-10); el.style.left=x+'%'; el.style.top=y+'%'; if(el===mp3Win) positionScUnderMp3();
+      // highlight recycle only, do NOT delete until release
+      if(overlaps(el, recycleIcon)) recycleIcon.classList.add('hot'); else recycleIcon.classList.remove('hot');
+    }
+    function up(){ if(!dragging) return; dragging=false; el.classList.remove('dragging');
+      const shouldTrash = overlaps(el, recycleIcon);
+      recycleIcon.classList.remove('hot');
+      if(shouldTrash) handleTrash(el);
+    }
     el.addEventListener('pointerdown', down); el.addEventListener('touchstart', down, {passive:true});
     window.addEventListener('pointermove', move, {passive:true}); window.addEventListener('touchmove', move, {passive:true});
     window.addEventListener('pointerup', up); window.addEventListener('touchend', up);
@@ -215,8 +228,12 @@
 
   // Trash handler
   function handleTrash(el){
-    if(el.dataset && el.dataset.sink === 'hide'){ el.classList.remove('show'); if(el===player){ try{ yt.src = YT_PLAYLIST; }catch(_){ } } if(el===mp3Win){ scWrap.style.display='none'; }
-      return; }
+    if(el.dataset && el.dataset.sink === 'hide'){
+      el.classList.remove('show');
+      if(el===player){ try{ yt.src = YT_PLAYLIST; }catch(_){ } }
+      if(el===mp3Win){ scWrap.style.display='none'; }
+      return;
+    }
     try{ el.remove(); }catch(_){ }
   }
 
@@ -234,7 +251,7 @@
   function closeAll(){
     player.classList.remove('show'); aol.classList.remove('show'); mp3Win.classList.remove('show');
     document.querySelectorAll('.art-pop').forEach(n=>n.remove());
-    scWrap.style.display = 'none';
+    scWrap.style.display = 'none'; recycleIcon.classList.remove('hot');
   }
 
   // SoundCloud under-the-png positioning (and width sync) — NEVER behind
@@ -286,6 +303,9 @@
     while(pts.length<n){ pts.push({x: 12 + pts.length*16, y: 16 + (pts.length%2)*18}); }
     return pts;
   }
+
+  // Initial layout calls
+  positionRecycle();
 </script>
 </body>
 </html>
