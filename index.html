@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>aniiidroid · retro desktop (v8)</title>
+<title>aniiidroid’s desktop</title>
 <style>
   :root{
     /* Head placement on page (percent of page) */
@@ -87,9 +87,8 @@
   .icon:focus{ outline:2px solid rgba(0,255,122,.6); outline-offset:2px }
   .icon img{ max-width:100%; max-height:100%; image-rendering:pixelated; pointer-events:none; filter:none }
 
-  /* Recycle icon anchored bottom-right (FIRST ITERATION) */
-  /* >>> EDIT HERE to move it wherever you like <<< */
-  #iconRecycle{ position:fixed; right:-300px; bottom:-200px; z-index:var(--z-icons); transition:transform .08s ease }
+  /* Recycle icon: FOLLOW the icon grid (JS positions it) */
+  #iconRecycle{ position:fixed; z-index:var(--z-icons); transition:transform .08s ease }
   #iconRecycle.hot{ transform:scale(1.08); filter:drop-shadow(0 0 8px rgba(0,255,122,.7)) }
 
   /* Draggable helpers for anything that pops */
@@ -152,6 +151,7 @@
   const cursor = document.getElementById('cursor');
   const clickEl= document.getElementById('clickAudio');
   const recycleIcon = document.getElementById('iconRecycle');
+  const iconsGrid = document.querySelector('.icons');
 
   const yt = document.getElementById('yt');
   const YT_PLAYLIST = 'https://www.youtube.com/embed/videoseries?list=PLu5_M7wgzi0PtRH4YW5YN74MMQfqM6_g9&rel=0&modestbranding=1&playsinline=1';
@@ -174,6 +174,35 @@
   function pctX(px){ const S = stageRect(); return (px - S.left) / S.width * 100; }
   function pctY(py){ const S = stageRect(); return (py - S.top)  / S.height * 100; }
   function overlaps(a,b){ const r1=a.getBoundingClientRect(), r2=b.getBoundingClientRect(); return !(r1.right<r2.left||r1.left>r2.right||r1.bottom<r2.top||r1.top>r2.bottom); }
+
+  // >>> EDIT HERE: Recycle position *relative to the icon grid* <<<
+  const BIN = {
+    anchor: { x: 1, y: 1 },   // (0..1) inside grid box: (1,1)=bottom-right
+    offset: { dx: 220, dy: 140 }, // px nudge from the anchor point
+    margin: 12                 // keep at least this many px away from viewport edge
+  };
+
+  function positionRecycle(){
+    if(!iconsGrid) return;
+    const gr = iconsGrid.getBoundingClientRect();
+    const el = recycleIcon;
+    const r  = el.getBoundingClientRect();
+    const w  = r.width  || 64;
+    const h  = r.height || 64;
+
+    // anchor inside the grid + your offset; center the icon
+    let x = gr.left + gr.width  * BIN.anchor.x + BIN.offset.dx - w/2;
+    let y = gr.top  + gr.height * BIN.anchor.y + BIN.offset.dy - h/2;
+
+    // clamp to viewport
+    x = Math.max(BIN.margin, Math.min(window.innerWidth  - w - BIN.margin, x));
+    y = Math.max(BIN.margin, Math.min(window.innerHeight - h - BIN.margin, y));
+
+    el.style.left = x + 'px';
+    el.style.top  = y + 'px';
+  }
+  window.addEventListener('load', positionRecycle);
+  window.addEventListener('resize', positionRecycle);
 
   // Generic draggable for any .pop element (supports slight overflow past LEFT/TOP)
   function makeDraggable(el, opts={}){
