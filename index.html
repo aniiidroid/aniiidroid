@@ -90,6 +90,9 @@
   /* Recycle icon: FOLLOW the icon grid (JS positions it) */
   #iconRecycle{ position:fixed; z-index:var(--z-icons); transition:transform .08s ease }
   #iconRecycle.hot{ transform:scale(1.08); filter:drop-shadow(0 0 8px rgba(0,255,122,.7)) }
+  /* Finder pulse so you can spot it quickly */
+  #iconRecycle.ping{ animation: ping .9s ease-in-out 3 }
+  @keyframes ping { 0%{ transform:scale(1) } 50%{ transform:scale(1.2) } 100%{ transform:scale(1) } }
 
   /* Draggable helpers for anything that pops */
   .pop{ position:absolute; z-index:var(--z-popups); touch-action:none }
@@ -140,6 +143,7 @@
 <!-- Cursor & click sound -->
 <img id="cursor" src="mouse 3.gif" alt="" onerror="document.body.style.cursor='auto'; this.remove();"/>
 <audio id="clickAudio" src="laser.mp3" preload="metadata"></audio>
+<audio id="virusSfx" src="PH intro - Sound Effects (HD 4K).mp3" preload="auto"></audio>
 
 <script>
   // Elements
@@ -178,9 +182,13 @@
   // >>> EDIT HERE: Recycle position *relative to the icon grid* <<<
   const BIN = {
     anchor: { x: 1, y: 1 },   // (0..1) inside grid box: (1,1)=bottom-right
-    offset: { dx: -300, dy:-200 }, // px nudge from the anchor point
+    offset: { dx: 220, dy: 140 }, // px nudge from the anchor point
     margin: 12                 // keep at least this many px away from viewport edge
   };
+
+  // >>> EDIT HERE: delay before 'virus.html' navigation (ms)
+  const VIRUS_DELAY_MS = 3000;
+  let virusPending = false;
 
   function positionRecycle(){
     if(!iconsGrid) return;
@@ -201,8 +209,31 @@
     el.style.left = x + 'px';
     el.style.top  = y + 'px';
   }
-  window.addEventListener('load', positionRecycle);
-  window.addEventListener('resize', positionRecycle);
+
+  // Snap bin to bottom-right and pulse so you can find it
+  function bringBin(){
+    const el = recycleIcon;
+    const r  = el.getBoundingClientRect();
+    const w  = r.width  || 64;
+    const h  = r.height || 64;
+    el.style.left = (window.innerWidth - w - 28) + 'px';
+    el.style.top  = (window.innerHeight - h - 36) + 'px';
+    el.classList.add('ping');
+    setTimeout(()=> el.classList.remove('ping'), 1500);
+  }
+
+  // Position normally; if off-screen, rescue it
+  function safePositionBin(){
+    positionRecycle();
+    const r = recycleIcon.getBoundingClientRect();
+    const off = (r.right < 0 || r.bottom < 0 || r.left > window.innerWidth || r.top > window.innerHeight);
+    if(off) bringBin();
+  }
+  window.addEventListener('load', safePositionBin);
+  window.addEventListener('resize', safePositionBin);
+
+  // Press "B" to bring the bin to bottom-right if you ever lose it
+  window.addEventListener('keydown', (e)=>{ if((e.key||'').toLowerCase()==='b'){ bringBin(); } });
 
   // Generic draggable for any .pop element (supports slight overflow past LEFT/TOP)
   function makeDraggable(el, opts={}){
@@ -241,7 +272,13 @@
   bind('iconAol','click', ()=> aol.classList.add('show'));
   bind('iconMp3','click', ()=>{ mp3Win.classList.add('show'); positionScUnderMp3(); });
   bind('iconArt','click', spawnArt);
-  bind('iconVirus','click', ()=>{ window.location.href = 'virus.html'; });
+  bind('iconVirus','click', ()=>{
+    if(virusPending) return; // prevent double-trigger
+    virusPending = true;
+    const s = document.getElementById('virusSfx');
+    try{ s.currentTime = 0; s.play().catch(()=>{}); }catch(_){ }
+    setTimeout(()=>{ window.location.href = 'virus.html'; }, VIRUS_DELAY_MS);
+  });
   bind('iconRecycle','click', closeAll);
   bind('iconAbout','click', ()=>{ window.location.href = 'about.html'; });
 
@@ -301,4 +338,3 @@
 </script>
 </body>
 </html>
-
