@@ -87,12 +87,13 @@
   .icon:focus{ outline:2px solid rgba(0,255,122,.6); outline-offset:2px }
   .icon img{ max-width:100%; max-height:100%; image-rendering:pixelated; pointer-events:none; filter:none }
 
-  /* Recycle icon: FOLLOW the icon grid (JS positions it) */
-  #iconRecycle{ position:fixed; z-index:var(--z-icons); transition:transform .08s ease }
+  /* Recycle icon: visible fallback + JS will reposition it relative to the icon grid */
+  /* >>> EDIT HERE to change the fallback location you see on first paint <<< */
+  #iconRecycle{
+    position:fixed; right:48px; bottom:56px;  /* fallback anchor so it's always visible */
+    z-index:var(--z-icons); transition:transform .08s ease;
+  }
   #iconRecycle.hot{ transform:scale(1.08); filter:drop-shadow(0 0 8px rgba(0,255,122,.7)) }
-  /* Finder pulse so you can spot it quickly */
-  #iconRecycle.ping{ animation: ping .9s ease-in-out 3 }
-  @keyframes ping { 0%{ transform:scale(1) } 50%{ transform:scale(1.2) } 100%{ transform:scale(1) } }
 
   /* Draggable helpers for anything that pops */
   .pop{ position:absolute; z-index:var(--z-popups); touch-action:none }
@@ -110,7 +111,9 @@
   <div class="player pop" id="player" data-sink="hide" data-miny="-25" data-minx="-12">
     <img src="media head.png" alt="media head" class="sprite" draggable="false"/>
     <div class="screen" aria-label="video screen">
-      <iframe id="yt" src="https://www.youtube.com/embed/videoseries?list=PLu5_M7wgzi0PtRH4YW5YN74MMQfqM6_g9&rel=0&modestbranding=1&playsinline=1" title="YouTube playlist" allow="autoplay; accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+      <iframe id="yt" loading="lazy"
+        src="https://www.youtube.com/embed/videoseries?list=PLu5_M7wgzi0PtRH4YW5YN74MMQfqM6_g9&rel=0&modestbranding=1&playsinline=1"
+        title="YouTube playlist" allow="autoplay; accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
     </div>
   </div>
 
@@ -124,7 +127,8 @@
     <img src="music player.png" alt="music player" draggable="false"/>
   </div>
   <div class="sc-wrap" id="scWrap">
-    <iframe height="300" scrolling="no" frameborder="no" allow="autoplay" src="https://w.soundcloud.com/player/?url=https%3A//soundcloud.com/aniiidroid/sets/droid&color=%23ff5500&auto_play=false&hide_related=false&show_comments=true&show_user=true&show_reposts=false&show_teaser=true"></iframe>
+    <iframe loading="lazy" height="300" scrolling="no" frameborder="no" allow="autoplay"
+      src="https://w.soundcloud.com/player/?url=https%3A//soundcloud.com/aniiidroid/sets/droid&color=%23ff5500&auto_play=false&hide_related=false&show_comments=true&show_user=true&show_reposts=false&show_teaser=true"></iframe>
     <div style="font-size: 10px; color: #cccccc;line-break: anywhere;word-break: normal;overflow: hidden;white-space: nowrap;text-overflow: ellipsis; font-family: Interstate,Lucida Grande,Lucida Sans Unicode,Lucida Sans,Garuda,Verdana,Tahoma,sans-serif;font-weight: 100;"><a href="https://soundcloud.com/aniiidroid" title="ANIIIDROID" target="_blank" style="color: #cccccc; text-decoration: none;">ANIIIDROID</a> · <a href="https://soundcloud.com/aniiidroid/sets/droid" title="Droid" target="_blank" style="color: #cccccc; text-decoration: none;">Droid</a></div>
   </div>
 
@@ -181,24 +185,18 @@
 
   // >>> EDIT HERE: Recycle position *relative to the icon grid* <<<
   const BIN = {
-    anchor: { x: 1, y: 1 },   // (0..1) inside grid box: (1,1)=bottom-right
-    offset: { dx: 220, dy: 140 }, // px nudge from the anchor point
+    anchor: { x: 1, y: 1 },   // (0..1) inside grid box: (1,1)=bottom-right of the grid
+    offset: { dx: 220, dy: 140 }, // px nudge from that anchor (negative = left/up)
     margin: 12                 // keep at least this many px away from viewport edge
   };
-
-  // >>> EDIT HERE: delay before 'virus.html' navigation (ms)
-  const VIRUS_DELAY_MS = 3000;
-  let virusPending = false;
 
   function positionRecycle(){
     if(!iconsGrid) return;
     const gr = iconsGrid.getBoundingClientRect();
     const el = recycleIcon;
-    const r  = el.getBoundingClientRect();
-    const w  = r.width  || 64;
-    const h  = r.height || 64;
+    const w  = el.offsetWidth  || 64;
+    const h  = el.offsetHeight || 64;
 
-    // anchor inside the grid + your offset; center the icon
     let x = gr.left + gr.width  * BIN.anchor.x + BIN.offset.dx - w/2;
     let y = gr.top  + gr.height * BIN.anchor.y + BIN.offset.dy - h/2;
 
@@ -208,32 +206,16 @@
 
     el.style.left = x + 'px';
     el.style.top  = y + 'px';
-  }
 
-  // Snap bin to bottom-right and pulse so you can find it
-  function bringBin(){
-    const el = recycleIcon;
-    const r  = el.getBoundingClientRect();
-    const w  = r.width  || 64;
-    const h  = r.height || 64;
-    el.style.left = (window.innerWidth - w - 28) + 'px';
-    el.style.top  = (window.innerHeight - h - 36) + 'px';
-    el.classList.add('ping');
-    setTimeout(()=> el.classList.remove('ping'), 1500);
+    /* IMPORTANT: clear the CSS fallback so JS position takes over */
+    el.style.right = 'auto';
+    el.style.bottom = 'auto';
   }
+  window.addEventListener('load', positionRecycle);
+  window.addEventListener('resize', positionRecycle);
 
-  // Position normally; if off-screen, rescue it
-  function safePositionBin(){
-    positionRecycle();
-    const r = recycleIcon.getBoundingClientRect();
-    const off = (r.right < 0 || r.bottom < 0 || r.left > window.innerWidth || r.top > window.innerHeight);
-    if(off) bringBin();
-  }
-  window.addEventListener('load', safePositionBin);
-  window.addEventListener('resize', safePositionBin);
-
-  // Press "B" to bring the bin to bottom-right if you ever lose it
-  window.addEventListener('keydown', (e)=>{ if((e.key||'').toLowerCase()==='b'){ bringBin(); } });
+  // Emergency finder: press B to snap to bottom-right fallback
+  window.addEventListener('keydown', (e)=>{ if((e.key||'').toLowerCase()==='b'){ recycleIcon.style.left=''; recycleIcon.style.top=''; recycleIcon.style.right='48px'; recycleIcon.style.bottom='56px'; }});
 
   // Generic draggable for any .pop element (supports slight overflow past LEFT/TOP)
   function makeDraggable(el, opts={}){
@@ -273,11 +255,10 @@
   bind('iconMp3','click', ()=>{ mp3Win.classList.add('show'); positionScUnderMp3(); });
   bind('iconArt','click', spawnArt);
   bind('iconVirus','click', ()=>{
-    if(virusPending) return; // prevent double-trigger
-    virusPending = true;
+    if(window.virusPending) return; window.virusPending = true;
     const s = document.getElementById('virusSfx');
     try{ s.currentTime = 0; s.play().catch(()=>{}); }catch(_){ }
-    setTimeout(()=>{ window.location.href = 'virus.html'; }, VIRUS_DELAY_MS);
+    setTimeout(()=>{ window.location.href = 'virus.html'; }, 3000); // 3s delay
   });
   bind('iconRecycle','click', closeAll);
   bind('iconAbout','click', ()=>{ window.location.href = 'about.html'; });
@@ -335,6 +316,9 @@
     while(pts.length<n){ pts.push({x: 12 + pts.length*16, y: 16 + (pts.length%2)*18}); }
     return pts;
   }
+
+  // Initial pass to position the recycle bin
+  positionRecycle();
 </script>
 </body>
 </html>
