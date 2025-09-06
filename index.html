@@ -3,322 +3,205 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>aniiidroid’s desktop</title>
+<title>VIRUS</title>
 <style>
   :root{
-    /* Head placement on page (percent of page) */
-    --player-x: 21;   /* left %  */
-    --player-y: 14;   /* top  %  */
-    --player-w: 40.6; /* width % (30% smaller than original 58) */
-
-    /* Video window inside the head (percent of head box) */
-    --screen-left: 37.0;
-    --screen-top:  28.0;
-    --screen-w:    27.0;
-    --screen-h:    30.0;
-
-    /* AOL window placement */
-    --aol-x: 73;  --aol-y: 54;  --aol-w: 22;
-
-    /* Background fit */
-    --bgfit: contain;
-
-    /* Desktop icon size (RESPONSIVE) */
-    /* >>> EDIT HERE to control icon/button scaling across window sizes <<< */
-    --icon-sz: clamp(64px, 8vw, 112px);
-
-    /* Z layering */
-    --z-icons: 2;      /* desktop icons */
-    --z-popups: 6;     /* windows / art */
-    --z-cursor: 9999;  /* custom cursor */
+    /* spawn image size range */
+    --spawn-min: 18vmin;
+    --spawn-max: 36vmin;
   }
-
-  *{box-sizing:border-box}
-  html,body{height:100%;margin:0}
+  html,body{ height:100%; margin:0; overflow:hidden; }
   body{
-    background:#061607;
-    color:#000;
-    font-family:Tahoma,Verdana,system-ui,sans-serif;
-    cursor:none; /* custom cursor */
-    overflow:hidden;
+    background:#000 url('pbg.png') center/cover no-repeat fixed;
+    cursor:crosshair;
+    user-select:none;
+  }
+  #stage{ position:fixed; inset:0; }
+
+  /* stacked spawn images */
+  .spawn{
+    position:absolute; left:0; top:0;
+    width:clamp(var(--spawn-min), 30vmin, var(--spawn-max)); height:auto;
+    image-rendering:pixelated; pointer-events:none; /* clicks pass through for more chaos */
+    transform-origin:center center; will-change:transform, left, top;
   }
 
-  /* Full-viewport stage + background */
-  .stage{
-    position:fixed; inset:0; width:100vw; height:100dvh;
-    background:url('98webbgfin.png') center/var(--bgfit) no-repeat;
-    overflow:hidden;
-    touch-action:none; /* keep drags smooth on touch */
-  }
-
-  /* Head (draggable) */
-  .player{
-    position:absolute;
-    left:calc(var(--player-x) * 1%); top:calc(var(--player-y) * 1%);
-    width:calc(var(--player-w) * 1%);
-    user-select:none; -webkit-user-drag:none;
-    cursor:grab; touch-action:none; display:none; /* hidden until opened */
-    z-index:var(--z-popups);
-  }
-  .player.show{ display:block; }
-  .player:active{ cursor:grabbing; }
-  .player .sprite{ position:relative; z-index:2; width:100%; height:auto; display:block; image-rendering:pixelated; pointer-events:none }
-  .player .screen{ position:absolute; z-index:1; left:calc(var(--screen-left) * 1%); top:calc(var(--screen-top) * 1%); width:calc(var(--screen-w) * 1%); height:calc(var(--screen-h) * 1%); background:#000; overflow:hidden }
-  .player .screen iframe{ position:absolute; inset:0; width:100%; height:100%; border:0 }
-
-  /* AOL window (draggable) */
-  .aol{ position:absolute; left:calc(var(--aol-x) * 1%); top:calc(var(--aol-y) * 1%); width:calc(var(--aol-w) * 1%); user-select:none; -webkit-user-drag:none; cursor:grab; touch-action:none; z-index:var(--z-popups); display:none }
-  .aol.show{ display:block }
-  .aol:active{ cursor:grabbing }
-  .aol .sprite{ width:100%; height:auto; display:block; image-rendering:pixelated; pointer-events:none }
-
-  /* MP3 window (bottom) */
-  .mp3{ position:absolute; left:50%; transform:translateX(-50%); bottom:2%; z-index:var(--z-popups); display:none; cursor:grab; user-select:none }
-  .mp3.show{ display:block }
-  .mp3 img{ width:min(56vw, 504px); height:auto; display:block; image-rendering:pixelated; pointer-events:none }
-
-  /* SoundCloud container that pops UNDER the mp3 window and follows it */
-  .sc-wrap{ display:none; position:fixed; pointer-events:auto }
-  .sc-wrap iframe{ width:100%; border:0 }
-
-  /* Desktop icons (middle, behind windows) */
-  .icons{ position:absolute; left:50%; top:52%; transform:translate(-50%,-50%); display:grid; grid-template-columns:repeat(4, var(--icon-sz)); grid-auto-rows: var(--icon-sz); gap: clamp(12px, 1.6vw, 18px); z-index:var(--z-icons) }
-  .icon{ width:var(--icon-sz); height:var(--icon-sz); display:grid; place-items:center; cursor:pointer; background:transparent; border:0; padding:0; appearance:none; -webkit-appearance:none }
-  .icon:focus{ outline:2px solid rgba(0,255,122,.6); outline-offset:2px }
-  .icon img{ max-width:100%; max-height:100%; image-rendering:pixelated; pointer-events:none; filter:none }
-
-  /* Recycle icon: visible fallback + JS will reposition it relative to the icon grid */
-  /* >>> EDIT HERE to change the fallback location you see on first paint <<< */
-  #iconRecycle{
-    position:fixed; right:48px; bottom:56px;  /* fallback anchor so it's always visible */
-    z-index:var(--z-icons); transition:transform .08s ease;
-  }
-  #iconRecycle.hot{ transform:scale(1.08); filter:drop-shadow(0 0 8px rgba(0,255,122,.7)) }
-
-  /* Draggable helpers for anything that pops */
-  .pop{ position:absolute; z-index:var(--z-popups); touch-action:none }
-  .dragging{ cursor:grabbing !important }
-
-  /* Custom cursor */
-  #cursor{ position:fixed; left:0; top:0; height:32px; width:auto; pointer-events:none; transform:translate(-50%,-50%); image-rendering:pixelated; z-index:var(--z-cursor) }
-  #cursor.down{ filter:invert(1) hue-rotate(180deg) }
+  /* special popups */
+  #abort{ position:absolute; width:min(44vmin, 520px); height:auto; image-rendering:pixelated; pointer-events:none; z-index:9999; }
+  #angel{ position:absolute; width:min(28vmin, 360px); height:auto; image-rendering:pixelated; cursor:pointer; z-index:9980; }
 </style>
 </head>
 <body>
+  <main id="stage" aria-label="danger zone"></main>
 
-<main class="stage" id="stage" aria-label="retro desktop background">
-  <!-- Head / player -->
-  <div class="player pop" id="player" data-sink="hide" data-miny="-25" data-minx="-12">
-    <img src="media head.png" alt="media head" class="sprite" draggable="false"/>
-    <div class="screen" aria-label="video screen">
-      <iframe id="yt" loading="lazy"
-        src="https://www.youtube.com/embed/videoseries?list=PLu5_M7wgzi0PtRH4YW5YN74MMQfqM6_g9&rel=0&modestbranding=1&playsinline=1"
-        title="YouTube playlist" allow="autoplay; accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
-    </div>
-  </div>
-
-  <!-- AOL window -->
-  <div class="aol pop" id="aol" data-sink="hide" data-miny="-15" data-minx="-10">
-    <img src="aoll3.png" alt="About window" class="sprite" draggable="false"/>
-  </div>
-
-  <!-- MP3 player (bottom) + SoundCloud under it -->
-  <div class="mp3 pop" id="mp3Win" data-sink="hide" data-miny="-25" data-minx="-12">
-    <img src="music player.png" alt="music player" draggable="false"/>
-  </div>
-  <div class="sc-wrap" id="scWrap">
-    <iframe loading="lazy" height="300" scrolling="no" frameborder="no" allow="autoplay"
-      src="https://w.soundcloud.com/player/?url=https%3A//soundcloud.com/aniiidroid/sets/droid&color=%23ff5500&auto_play=false&hide_related=false&show_comments=true&show_user=true&show_reposts=false&show_teaser=true"></iframe>
-    <div style="font-size: 10px; color: #cccccc;line-break: anywhere;word-break: normal;overflow: hidden;white-space: nowrap;text-overflow: ellipsis; font-family: Interstate,Lucida Grande,Lucida Sans Unicode,Lucida Sans,Garuda,Verdana,Tahoma,sans-serif;font-weight: 100;"><a href="https://soundcloud.com/aniiidroid" title="ANIIIDROID" target="_blank" style="color: #cccccc; text-decoration: none;">ANIIIDROID</a> · <a href="https://soundcloud.com/aniiidroid/sets/droid" title="Droid" target="_blank" style="color: #cccccc; text-decoration: none;">Droid</a></div>
-  </div>
-
-  <!-- Desktop icons (middle, behind windows) -->
-  <nav class="icons" aria-label="desktop icons">
-    <button class="icon" id="iconVid" title="Video"><img src="vid icon.png" alt="video icon"></button>
-    <button class="icon" id="iconAol" title="AOL"><img src="aol icon.png" alt="aol icon"></button>
-    <button class="icon" id="iconMp3" title="MP3"><img src="mp3 icon.png" alt="mp3 icon"></button>
-    <button class="icon" id="iconArt" title="Art"><img src="art icon.png" alt="art icon"></button>
-    <button class="icon" id="iconAbout" title="About Me"><img src="about me.png" alt="about me icon"></button>
-    <button class="icon" id="iconVirus" title="Virus"><img src="virus icon.png" alt="virus icon"></button>
-    <button class="icon" id="iconRecycle" title="Recycle"><img src="recycling.png" alt="recycling"></button>
-  </nav>
-</main>
-
-<!-- Cursor & click sound -->
-<img id="cursor" src="mouse 3.gif" alt="" onerror="document.body.style.cursor='auto'; this.remove();"/>
-<audio id="clickAudio" src="laser.mp3" preload="metadata"></audio>
-<audio id="virusSfx" src="PH intro - Sound Effects (HD 4K).mp3" preload="auto"></audio>
+  <!-- Background audio (tries to autoplay; will also start on first click) -->
+  <audio id="bgm" src="cringevir.wav" preload="auto" autoplay playsinline></audio>
 
 <script>
-  // Elements
-  const stage  = document.getElementById('stage');
-  const player = document.getElementById('player');
-  const aol    = document.getElementById('aol');
-  const mp3Win = document.getElementById('mp3Win');
-  const scWrap = document.getElementById('scWrap');
-  const cursor = document.getElementById('cursor');
-  const clickEl= document.getElementById('clickAudio');
-  const recycleIcon = document.getElementById('iconRecycle');
-  const iconsGrid = document.querySelector('.icons');
+(function(){
+  const stage = document.getElementById('stage');
+  const bgm = document.getElementById('bgm');
 
-  const yt = document.getElementById('yt');
-  const YT_PLAYLIST = 'https://www.youtube.com/embed/videoseries?list=PLu5_M7wgzi0PtRH4YW5YN74MMQfqM6_g9&rel=0&modestbranding=1&playsinline=1';
+  // Pool of images to cycle through on click (order repeats forever)
+  const POOL = [
+    'crit.png',
+    'file 1.png',
+    'fur1.png',
+    'fur2.png',
+    'fur3.png',
+    'warn.png'
+  ];
 
-  const stageRect = () => stage.getBoundingClientRect();
+  let poolIndex = 0, z = 10;
 
-  // CLICK SOUND (on any press)
-  function clickFx(){ try{ clickEl.currentTime = 0; clickEl.play(); }catch(_){ } }
-  window.addEventListener('pointerdown', ()=>{ cursor?.classList.add('down'); clickFx(); });
-  window.addEventListener('pointerup',   ()=>{ cursor?.classList.remove('down'); });
+  // Attempt immediate play; if blocked, unlock on first interaction
+  function tryPlay(){ try{ const p = bgm.play(); if(p) p.catch(()=>{});}catch(_){} }
+  document.addEventListener('DOMContentLoaded', tryPlay);
+  window.addEventListener('pointerdown', ()=>{ tryPlay(); });
 
-  // CUSTOM CURSOR FOLLOW
-  function cursorMove(e){ const p = e.touches?.[0] || e; if(!cursor || !p) return; cursor.style.left = p.clientX + 'px'; cursor.style.top  = p.clientY + 'px'; }
-  window.addEventListener('pointermove', cursorMove, {passive:true});
-  window.addEventListener('touchmove',   cursorMove, {passive:true});
-  setTimeout(()=>{ if(cursor && !cursor.style.left){ document.body.style.cursor='auto'; try{cursor.remove();}catch(_){}} }, 1200);
-
-  // Helpers
-  function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
-  function pctX(px){ const S = stageRect(); return (px - S.left) / S.width * 100; }
-  function pctY(py){ const S = stageRect(); return (py - S.top)  / S.height * 100; }
-  function overlaps(a,b){ const r1=a.getBoundingClientRect(), r2=b.getBoundingClientRect(); return !(r1.right<r2.left||r1.left>r2.right||r1.bottom<r2.top||r1.top>r2.bottom); }
-
-  // >>> EDIT HERE: Recycle position *relative to the icon grid* <<<
-  const BIN = {
-    anchor: { x: 1, y: 1 },   // (0..1) inside grid box: (1,1)=bottom-right of the grid
-    offset: { dx: 220, dy: 140 }, // px nudge from that anchor (negative = left/up)
-    margin: 12                 // keep at least this many px away from viewport edge
-  };
-
-  function positionRecycle(){
-    if(!iconsGrid) return;
-    const gr = iconsGrid.getBoundingClientRect();
-    const el = recycleIcon;
-    const w  = el.offsetWidth  || 64;
-    const h  = el.offsetHeight || 64;
-
-    let x = gr.left + gr.width  * BIN.anchor.x + BIN.offset.dx - w/2;
-    let y = gr.top  + gr.height * BIN.anchor.y + BIN.offset.dy - h/2;
-
-    // clamp to viewport
-    x = Math.max(BIN.margin, Math.min(window.innerWidth  - w - BIN.margin, x));
-    y = Math.max(BIN.margin, Math.min(window.innerHeight - h - BIN.margin, y));
-
-    el.style.left = x + 'px';
-    el.style.top  = y + 'px';
-
-    /* IMPORTANT: clear the CSS fallback so JS position takes over */
-    el.style.right = 'auto';
-    el.style.bottom = 'auto';
+  // Random helpers
+  const rand = (a,b)=> a + Math.random()*(b-a);
+  function randPos(w,h){
+    const W = window.innerWidth, H = window.innerHeight;
+    return { x: Math.floor(rand(0, Math.max(0, W - w))), y: Math.floor(rand(0, Math.max(0, H - h))) };
   }
-  window.addEventListener('load', positionRecycle);
-  window.addEventListener('resize', positionRecycle);
 
-  // Emergency finder: press B to snap to bottom-right fallback
-  window.addEventListener('keydown', (e)=>{ if((e.key||'').toLowerCase()==='b'){ recycleIcon.style.left=''; recycleIcon.style.top=''; recycleIcon.style.right='48px'; recycleIcon.style.bottom='56px'; }});
+  function spawnNext(){
+    const src = POOL[poolIndex]; poolIndex = (poolIndex + 1) % POOL.length;
+    const img = new Image(); img.src = src; img.className = 'spawn'; img.style.zIndex = (++z).toString();
 
-  // Generic draggable for any .pop element (supports slight overflow past LEFT/TOP)
-  function makeDraggable(el, opts={}){
-    let dragging=false, dx=0, dy=0; el.style.left = el.style.left || '10%'; el.style.top = el.style.top || '10%';
-    const minYpct = parseFloat(el.dataset.miny ?? opts.miny ?? '0');
-    const minXpct = parseFloat(el.dataset.minx ?? opts.minx ?? '0');
-    function down(e){ dragging=true; el.classList.add('dragging'); try{ el.setPointerCapture?.(e.pointerId);}catch(_){} const r=el.getBoundingClientRect(); const p=e.touches?.[0]||e; dx=p.clientX-r.left; dy=p.clientY-r.top; }
-    function move(e){ if(!dragging) return; const p=e.touches?.[0]||e; const S=stageRect(); let x=pctX(p.clientX-dx+S.left); let y=pctY(p.clientY-dy+S.top); const ew=el.getBoundingClientRect().width/S.width*100; x=clamp(x,minXpct,100-ew); y=clamp(y,minYpct,100-10); el.style.left=x+'%'; el.style.top=y+'%'; if(el===mp3Win) positionScUnderMp3();
-      // highlight recycle only, do NOT delete until release
-      if(overlaps(el, recycleIcon)) recycleIcon.classList.add('hot'); else recycleIcon.classList.remove('hot');
+    // temp size to compute placement once loaded
+    img.onload = () => {
+      // scale to a random width in vmin range while respecting intrinsic ratio
+      const scaleW = Math.round(rand(window.innerWidth*0.12, window.innerWidth*0.24));
+      img.style.width = scaleW + 'px';
+      const r = img.getBoundingClientRect();
+      const p = randPos(r.width, r.height);
+      img.style.left = p.x + 'px';
+      img.style.top  = p.y + 'px';
+      const rot = rand(-15, 15).toFixed(1);
+      img.style.transform = `rotate(${rot}deg)`;
+    };
+
+    stage.appendChild(img);
+  }
+
+  // Click anywhere to spawn next image
+  stage.addEventListener('pointerdown', (e)=>{ spawnNext(); });
+
+  // ----------------------- ABORT (mouse-avoid) -----------------------
+  let abortEl = null; const abortState = { x: 160, y: 120, vx: 1.2, vy: 0.9 };
+  const MAX_S = 6, AVOID_R = 160, AVOID_F = 2200, FRICTION = 0.985, WANDER = 0.25;
+  const mouse = { x: -9999, y: -9999 };
+  window.addEventListener('pointermove', e=>{ mouse.x = e.clientX; mouse.y = e.clientY; });
+
+  function addAbort(){
+    if(abortEl) return;
+    abortEl = new Image(); abortEl.id = 'abort'; abortEl.src = 'abort.png';
+    stage.appendChild(abortEl);
+    // center it initially
+    const r = abortEl.getBoundingClientRect();
+    abortState.x = (window.innerWidth - r.width)/2; abortState.y = (window.innerHeight - r.height)/2;
+    abortEl.style.left = abortState.x + 'px'; abortEl.style.top = abortState.y + 'px';
+  }
+
+  function tickAbort(){
+    if(!abortEl) return;
+    const r = abortEl.getBoundingClientRect();
+    // attraction to wander
+    abortState.vx += rand(-WANDER, WANDER);
+    abortState.vy += rand(-WANDER, WANDER);
+
+    // repel from mouse if inside radius
+    const cx = r.left + r.width/2, cy = r.top + r.height/2;
+    const dx = cx - mouse.x, dy = cy - mouse.y;
+    const d2 = dx*dx + dy*dy; const R2 = AVOID_R*AVOID_R;
+    if(d2 < R2){
+      const dist = Math.max(Math.sqrt(d2), 0.001);
+      const f = AVOID_F / (dist*dist); // stronger when closer
+      abortState.vx += (dx/dist) * f;
+      abortState.vy += (dy/dist) * f;
     }
-    function up(){ if(!dragging) return; dragging=false; el.classList.remove('dragging'); const shouldTrash = overlaps(el, recycleIcon); recycleIcon.classList.remove('hot'); if(shouldTrash) handleTrash(el); }
-    el.addEventListener('pointerdown', down); el.addEventListener('touchstart', down, {passive:true});
-    window.addEventListener('pointermove', move, {passive:true}); window.addEventListener('touchmove', move, {passive:true});
-    window.addEventListener('pointerup', up); window.addEventListener('touchend', up);
+
+    // integrate + friction
+    abortState.vx *= FRICTION; abortState.vy *= FRICTION;
+
+    // clamp speed
+    const s = Math.hypot(abortState.vx, abortState.vy);
+    if(s > MAX_S){ const k = MAX_S / s; abortState.vx *= k; abortState.vy *= k; }
+
+    // move
+    abortState.x += abortState.vx; abortState.y += abortState.vy;
+
+    // bounce off edges
+    if(abortState.x <= 0){ abortState.x = 0; abortState.vx = Math.abs(abortState.vx); }
+    if(abortState.y <= 0){ abortState.y = 0; abortState.vy = Math.abs(abortState.vy); }
+    const maxX = window.innerWidth - r.width; const maxY = window.innerHeight - r.height;
+    if(abortState.x >= maxX){ abortState.x = maxX; abortState.vx = -Math.abs(abortState.vx); }
+    if(abortState.y >= maxY){ abortState.y = maxY; abortState.vy = -Math.abs(abortState.vy); }
+
+    abortEl.style.left = abortState.x + 'px';
+    abortEl.style.top  = abortState.y + 'px';
   }
 
-  // Make built-in windows draggable
-  makeDraggable(player); makeDraggable(aol); makeDraggable(mp3Win);
+  // ----------------------- ANGEL (drift, click to exit) -----------------------
+  let angelEl = null; const angelState = { x: 80, y: 80, vx: 0.8, vy: 1.0 };
+  const ANGEL_MAX_S = 4, ANGEL_WANDER = 0.22, ANGEL_FRICTION = 0.992;
 
-  // Trash handler
-  function handleTrash(el){
-    if(el.dataset && el.dataset.sink === 'hide'){
-      el.classList.remove('show');
-      if(el===player){ try{ yt.src = YT_PLAYLIST; }catch(_){ } }
-      if(el===mp3Win){ scWrap.style.display='none'; }
-      return;
-    }
-    try{ el.remove(); }catch(_){ }
-  }
-
-  // ICON actions
-  const $ = (id)=>document.getElementById(id);
-  function bind(id, ev, fn){ const el=$(id); if(!el){ console.warn('missing', id); return;} el.addEventListener(ev, fn); }
-  bind('iconVid','click', ()=>{ if(yt && yt.src!==YT_PLAYLIST) yt.src = YT_PLAYLIST; player.classList.add('show'); });
-  bind('iconAol','click', ()=> aol.classList.add('show'));
-  bind('iconMp3','click', ()=>{ mp3Win.classList.add('show'); positionScUnderMp3(); });
-  bind('iconArt','click', spawnArt);
-  bind('iconVirus','click', ()=>{
-    if(window.virusPending) return; window.virusPending = true;
-    const s = document.getElementById('virusSfx');
-    try{ s.currentTime = 0; s.play().catch(()=>{}); }catch(_){ }
-    setTimeout(()=>{ window.location.href = 'virus.html'; }, 3000); // 3s delay
-  });
-  bind('iconRecycle','click', closeAll);
-  bind('iconAbout','click', ()=>{ window.location.href = 'about.html'; });
-
-  function closeAll(){
-    player.classList.remove('show'); aol.classList.remove('show'); mp3Win.classList.remove('show');
-    document.querySelectorAll('.art-pop').forEach(n=>n.remove());
-    scWrap.style.display = 'none'; recycleIcon.classList.remove('hot');
-  }
-
-  // SoundCloud under-the-png positioning (and width sync)
-  const SC = { gap: 8, height: 300, margin: 12 };
-  function positionScUnderMp3(){
-    scWrap.style.display = 'block';
-    const r = mp3Win.getBoundingClientRect();
-    const iframe = scWrap.querySelector('iframe');
-    iframe.style.height = SC.height + 'px';
-    let top = r.bottom + SC.gap;
-    if (top + SC.height + SC.margin > window.innerHeight) top = r.top - SC.height - SC.gap;
-    scWrap.style.left = (r.left + r.width/2) + 'px';
-    scWrap.style.top  = top + 'px';
-    scWrap.style.transform = 'translateX(-50%)';
-    scWrap.style.width = r.width + 'px';
-    scWrap.style.zIndex = (parseInt(getComputedStyle(mp3Win).zIndex || 10, 10) + 1).toString();
-  }
-  window.addEventListener('resize', ()=>{ if(mp3Win.classList.contains('show')) positionScUnderMp3(); });
-
-  // Spawn draggable art images (spread out; avoid bottom-right / recycle zone)
-  const ART_FILES = ['blue2.png','trump.png','me2.png','23.png','3 yel.png'];
-  let artSpawned = false;
-  function spawnArt(){
-    if(artSpawned) return; artSpawned = true;
-    const positions = generateSpreadPositions(ART_FILES.length);
-    ART_FILES.forEach((name, i)=>{
-      const img = document.createElement('img'); img.src = name; img.alt = name; img.className='pop art-pop';
-      img.style.left = positions[i].x + '%'; img.style.top = positions[i].y + '%';
-      img.style.maxWidth = '32vw'; img.style.maxHeight = '34vh'; img.style.imageRendering='pixelated';
-      img.dataset.miny = '-15'; img.dataset.minx = '-10';
-      stage.appendChild(img); makeDraggable(img);
+  function addAngel(){
+    if(angelEl) return;
+    angelEl = new Image(); angelEl.id = 'angel'; angelEl.src = 'angel.gif';
+    angelEl.addEventListener('click', ()=>{
+      // try to go back; fallback to root
+      try{ history.back(); }catch(_){ }
+      setTimeout(()=>{ window.location.href = './'; }, 200);
     });
-    const observer = new MutationObserver(()=>{ if(!document.querySelector('.art-pop')){ artSpawned=false; observer.disconnect(); } });
-    observer.observe(stage, {childList:true});
+    stage.appendChild(angelEl);
+    // place randomly near the top-right quadrant
+    const r = angelEl.getBoundingClientRect();
+    angelState.x = rand(window.innerWidth*0.55, Math.max(window.innerWidth - r.width - 20, window.innerWidth*0.8));
+    angelState.y = rand(20, window.innerHeight*0.35);
+    angelEl.style.left = angelState.x + 'px'; angelEl.style.top = angelState.y + 'px';
   }
 
-  function generateSpreadPositions(n){
-    const forbidden = {x:70, y:70};
-    const pts = []; const minDist = 14; let tries = 0;
-    while(pts.length < n && tries < 500){
-      tries++;
-      const x = 10 + Math.random()*60;
-      const y = 12 + Math.random()*44;
-      if(x>forbidden.x && y>forbidden.y) continue;
-      if(pts.every(p=>Math.hypot(p.x-x, p.y-y) > minDist)) pts.push({x:Math.round(x*100)/100, y:Math.round(y*100)/100});
-    }
-    while(pts.length<n){ pts.push({x: 12 + pts.length*16, y: 16 + (pts.length%2)*18}); }
-    return pts;
+  function tickAngel(){
+    if(!angelEl) return;
+    const r = angelEl.getBoundingClientRect();
+    angelState.vx += rand(-ANGEL_WANDER, ANGEL_WANDER);
+    angelState.vy += rand(-ANGEL_WANDER, ANGEL_WANDER);
+
+    angelState.vx *= ANGEL_FRICTION; angelState.vy *= ANGEL_FRICTION;
+    const s = Math.hypot(angelState.vx, angelState.vy);
+    if(s > ANGEL_MAX_S){ const k = ANGEL_MAX_S / s; angelState.vx *= k; angelState.vy *= k; }
+
+    angelState.x += angelState.vx; angelState.y += angelState.vy;
+
+    // bounce
+    if(angelState.x <= 0){ angelState.x = 0; angelState.vx = Math.abs(angelState.vx); }
+    if(angelState.y <= 0){ angelState.y = 0; angelState.vy = Math.abs(angelState.vy); }
+    const maxX = window.innerWidth - r.width; const maxY = window.innerHeight - r.height;
+    if(angelState.x >= maxX){ angelState.x = maxX; angelState.vx = -Math.abs(angelState.vx); }
+    if(angelState.y >= maxY){ angelState.y = maxY; angelState.vy = -Math.abs(angelState.vy); }
+
+    angelEl.style.left = angelState.x + 'px';
+    angelEl.style.top  = angelState.y + 'px';
   }
 
-  // Initial pass to position the recycle bin
-  positionRecycle();
+  // schedule special popups
+  setTimeout(addAbort, 12000);  // 12s
+  setTimeout(addAngel, 20000);  // 20s
+
+  // main loop
+  function frame(){ tickAbort(); tickAngel(); requestAnimationFrame(frame); }
+  requestAnimationFrame(frame);
+})();
+function withinViewport(el){ const r=el.getBoundingClientRect(); return !(r.right<0 || r.bottom<0 || r.left>window.innerWidth || r.top>window.innerHeight); }
+function bringBin(){ const el=recycleIcon; const w=el.getBoundingClientRect().width||64; const h=el.getBoundingClientRect().height||64; el.style.left=(window.innerWidth-w-28)+'px'; el.style.top=(window.innerHeight-h-36)+'px'; }
+function safePositionRecycle(){ if(typeof positionRecycle==='function') positionRecycle(); if(!withinViewport(recycleIcon)) bringBin(); }
+window.addEventListener('load', safePositionRecycle);
+window.addEventListener('resize', safePositionRecycle);
+setTimeout(safePositionRecycle, 400); setTimeout(safePositionRecycle, 1200);
+window.addEventListener('keydown', (e)=>{ if((e.key||'').toLowerCase()==='b') bringBin(); });
 </script>
 </body>
 </html>
